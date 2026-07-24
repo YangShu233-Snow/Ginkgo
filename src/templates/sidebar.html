@@ -1,0 +1,39 @@
+<aside
+  class="w-80 border-r border-slate-200 bg-white flex flex-col h-full shrink-0"
+>
+  <!-- 网站标题 -->
+  <div class="p-4 border-b border-slate-100 font-bold text-lg">
+    <a href="#" class="js-site-link">Site Name</a>
+  </div>
+
+  <!-- 动态菜单挂载的目标容器 -->
+  <nav class="js-menu-container flex-1 overflow-y-auto p-4 space-y-4">
+    <!--  -->
+  </nav>
+
+  <!-- 分类外壳母版 -->
+  <template class="js-tpl-category">
+    <div class="js-tpl-category-item space-y-2">
+      <div
+        class="js-category-title text-xs font-bold text-slate-400 uppercase tracking-wider px-2"
+      >
+        <!-- 分类名占位 -->
+      </div>
+      <div
+        class="js-link-container pl-4 space-y-1 border-l border-slate-100 ml-3"
+      >
+        <!-- 子链接将会被 append 到这里 -->
+      </div>
+    </div>
+  </template>
+
+  <!-- 2. 链接母版 -->
+  <template class="js-tpl-link">
+    <a
+      href="#"
+      class="js-link-item block w-full text-left px-3 py-1.5 text-xs rounded-md transition-all text-slate-500 hover:text-slate-800"
+    >
+      <!-- 链接文本占位 -->
+    </a>
+  </template>
+</aside>

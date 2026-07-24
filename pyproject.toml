@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Ginkgo"
+version = "0.0.1"
+authors = [
+    { name = "Yangshu233", email = "gm.yangshu233@gmail.com" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0.3",
+    "lxml>=6.1.1",
+    "markdown>=3.10.2"
+]
+
+[project.scripts]
+ginkgo = "cli:main"
+
+[tool.setuptools.package-data]
+"*" = ["templates/*"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
