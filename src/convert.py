@@ -1,4 +1,3 @@
-from ast import parse
 from pathlib import Path
 from lxml import html
 

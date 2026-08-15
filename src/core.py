@@ -17,6 +17,7 @@ BASEHTML_PATH = TEMPLATES_PATH / 'base.html'
 SIDEBARHTML_PATH = TEMPLATES_PATH / 'sidebar.html'
 INDEXHTML_PATH = TEMPLATES_PATH / 'index.html'
 QUIZHTML_PATH = TEMPLATES_PATH / 'quiz.html'
+FAVICON_PATH = TEMPLATES_PATH / 'favicon.svg'
 
 def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
     if not isinstance(exam, dict):
@@ -179,9 +180,11 @@ def exam_html_generator(website: dict, filepath: Path|str, siderbar_html):
     # 页面生成
     main_html_tree = html.parse(BASEHTML_PATH, html.HTMLParser(encoding='utf-8'))
     title_node = main_html_tree.xpath('//title')[0]
+    favicon_node = main_html_tree.xpath('//link[@rel="icon"]')[0]
     asider_container = main_html_tree.xpath("//*[contains(@class, '.js-asider-container')]")[0]
     quiz_container = main_html_tree.xpath("//*[contains(@class, '.js-quiz-container')]")[0]
     title_node.text = website.get('title')
+    favicon_node.set('href', '../favicon.svg')
     asider_container.append(siderbar_html)
     quiz_body = quiz_html_tree.find('.//body')
     for child in list(quiz_body):
@@ -224,6 +227,7 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
         shutil.rmtree(site_dir)
         
     site_dir.mkdir()
+    shutil.copyfile(FAVICON_PATH, site_dir / 'favicon.svg')
 
     index_html = index_html_generator(
         website=website,
