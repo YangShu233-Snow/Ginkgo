@@ -1,26 +1,38 @@
 <aside
-  class="w-60 border-r border-slate-200 bg-white flex flex-col h-full shrink-0"
+  id="site-sidebar"
+  class="absolute inset-y-0 left-0 flex h-full w-[min(20rem,75vw)] shrink-0 flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform ease-out md:static md:w-60 md:shadow-none"
 >
   <!-- 网站标题 -->
-  <div class="p-4 border-b border-slate-100 font-bold text-lg">
-    <a href="#" class="js-site-link">Site Name</a>
+  <div class="flex min-h-14 items-center gap-2 border-b border-slate-100 p-3 md:p-4">
+    <a href="#" class="js-site-link min-w-0 flex-1 truncate text-lg font-bold"
+      >Site Name</a
+    >
+    <button
+      type="button"
+      class="js-sidebar-close inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-2xl font-normal text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:hidden"
+      aria-label="关闭目录"
+    >
+      &times;
+    </button>
   </div>
 
   <!-- 动态菜单挂载的目标容器 -->
-  <nav class="js-menu-container flex-1 overflow-y-auto p-4 space-y-4">
+  <nav
+    class="js-menu-container flex-1 space-y-3 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:space-y-4"
+  >
     <!--  -->
   </nav>
 
   <!-- 分类外壳母版 -->
   <template class="js-tpl-category">
-    <div class="js-tpl-category-item space-y-2">
+    <div class="js-tpl-category-item space-y-1 md:space-y-2">
       <div
-        class="js-category-title text-xs font-bold text-slate-400 uppercase tracking-wider px-2"
+        class="js-category-title px-2 text-sm font-bold tracking-wide text-slate-600 md:text-xs md:uppercase md:tracking-wider md:text-slate-400"
       >
         <!-- 分类名占位 -->
       </div>
       <div
-        class="js-link-container pl-2 space-y-1 border-l border-slate-100 ml-3"
+        class="js-link-container ml-3 space-y-0.5 border-l-2 border-slate-200 pl-2 md:space-y-1 md:border-l md:border-slate-100"
       >
         <!-- 子链接将会被 append 到这里 -->
       </div>
@@ -31,7 +43,7 @@
   <template class="js-tpl-link">
     <a
       href="#"
-      class="js-link-item block w-full text-left px-3 py-1.5 text-xs rounded-md transition-all text-slate-500 hover:text-slate-800"
+      class="js-link-item block min-h-11 w-full rounded-lg px-3 py-3 text-left text-sm text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 md:min-h-0 md:py-1.5 md:text-xs"
     >
       <!-- 链接文本占位 -->
     </a>

@@ -296,26 +296,26 @@
 
     if (view === "menu") {
       return (
-        <div className="max-w-2xl mx-auto pt-16 px-6">
-          <div className="text-center mb-12">
-            <div className="inline-flex p-4 bg-blue-50 text-blue-600 rounded-3xl mb-4">
-              <BookOpen size={48} />
+        <div className="max-w-2xl mx-auto pt-4 px-0 sm:pt-10 sm:px-4 md:pt-16">
+          <div className="text-center mb-7 sm:mb-12">
+            <div className="inline-flex p-3 sm:p-4 bg-blue-50 text-blue-600 rounded-2xl sm:rounded-3xl mb-4">
+              <BookOpen size={40} />
             </div>
-            <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3 break-words">
               <div>title</div>
             </h1>
-            <p className="text-lg text-slate-500">
+            <p className="text-base sm:text-lg text-slate-500 leading-relaxed">
               <div>description</div>
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="grid sm:grid-cols-2 gap-3 sm:gap-6 mb-8">
             <button
               onClick={() => {
                 setView("quiz");
                 resetState();
               }}
-              className="flex flex-col text-left p-6 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all group"
+              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors mb-4 w-fit">
                 <ListChecks size={28} />
@@ -333,7 +333,7 @@
                 setView("flashcard");
                 resetState();
               }}
-              className="flex flex-col text-left p-6 bg-white border border-slate-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all group"
+              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors mb-4 w-fit">
                 <CreditCard size={28} />
@@ -352,31 +352,31 @@
 
     if (view === "quiz") {
       return (
-        <div className="max-w-2xl mx-auto pt-8 px-4">
+        <div className="max-w-2xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
           {/* 导航头 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setView("menu")}
-              className="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
+              className="min-h-11 shrink-0 text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
             >
               <ChevronLeft size={18} /> 返回主页
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowNavModal(true)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1"
+                className="min-h-11 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1"
               >
-                <Layers size={14} /> 跳转题目
+                <Layers size={16} /> <span className="hidden sm:inline">跳转题目</span><span className="sm:hidden">题目</span>
               </button>
-              <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold">
-                进度: {currentIdx + 1} / {mcqs.length}
+              <div className="whitespace-nowrap px-3 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-bold">
+                <span className="hidden sm:inline">进度: </span>{currentIdx + 1} / {mcqs.length}
               </div>
             </div>
           </div>
 
           {/* 进度条 */}
-          <div className="w-full h-2 bg-slate-200 rounded-full mb-8 overflow-hidden">
+          <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
               className="h-full bg-blue-600 transition-all duration-300"
               style={{ width: `${((currentIdx + 1) / mcqs.length) * 100}%` }}
@@ -384,8 +384,8 @@
           </div>
 
           {!showResult ? (
-            <div>
-              <div className="mb-6 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <div className="mobile-question-scroll">
+              <div className="mb-4 sm:mb-6 bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
                     QUESTION {currentIdx + 1}
@@ -402,7 +402,7 @@
                       : "单选题"}
                   </span>
                 </div>
-                <h2 className="text-xl font-bold text-slate-800 leading-snug">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-800 leading-relaxed break-words">
                   {mcqs[currentIdx].q}
                 </h2>
                 {getCorrectAnswers(mcqs[currentIdx]).length > 1 && (
@@ -438,7 +438,7 @@
                       onClick={() => handleQuizAnswer(i)}
                       aria-pressed={isSelected}
                       disabled={isAnswerSubmitted}
-                      className={`p-5 text-left border-2 rounded-xl transition-all duration-200 flex items-center justify-between ${style}`}
+                      className={`min-h-14 p-4 sm:p-5 text-left border-2 rounded-xl transition-all duration-200 flex items-center justify-between break-words focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${style}`}
                     >
                       <span className="leading-relaxed">
                         {String.fromCharCode(65 + i)}. {opt}
@@ -472,12 +472,12 @@
                 )}
             </div>
           ) : (
-            <div className="text-center py-12 px-6 bg-white rounded-3xl shadow-sm border border-slate-200">
+            <div className="text-center py-8 sm:py-12 px-4 sm:px-6 bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200">
               <Trophy
                 size={72}
                 className="mx-auto text-yellow-500 mb-4 animate-bounce"
               />
-              <h2 className="text-3xl font-extrabold text-slate-800 mb-2">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-2">
                 测试完成!
               </h2>
               <p className="text-slate-500 mb-6">
@@ -487,7 +487,7 @@
                 </span>
               </p>
 
-              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-8 text-sm inline-flex gap-8">
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mb-8 text-sm grid grid-cols-2 gap-4 sm:gap-8 w-full">
                 <div>
                   正确题数:{" "}
                   <span className="font-bold text-emerald-600">{score}</span>
@@ -523,10 +523,10 @@
                 </div>
               )}
 
-              <div className="flex gap-4 justify-center">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 justify-center">
                 <button
                   onClick={resetState}
-                  className="px-6 py-3 bg-slate-100 text-slate-700 rounded-full font-bold hover:bg-slate-200 transition-colors"
+                  className="min-h-12 w-full sm:w-auto px-6 py-3 bg-slate-100 text-slate-700 rounded-xl sm:rounded-full font-bold hover:bg-slate-200 transition-colors"
                 >
                   重新测试
                 </button>
@@ -535,7 +535,7 @@
                     resetState();
                     setView("menu");
                   }}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors shadow-md"
+                  className="min-h-12 w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl sm:rounded-full font-bold hover:bg-blue-700 transition-colors shadow-md"
                 >
                   返回主页
                 </button>
@@ -545,26 +545,27 @@
 
           {/* 选择题快速导航模态框 */}
           {showNavModal && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
-                <div className="p-5 border-b flex justify-between items-center bg-slate-50">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[85dvh] overflow-hidden flex flex-col shadow-2xl">
+                <div className="p-4 sm:p-5 border-b flex justify-between items-center bg-slate-50">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Layers size={18} className="text-blue-500" />{" "}
                     选择题目录跳转
                   </h3>
                   <button
                     onClick={() => setShowNavModal(false)}
-                    className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+                    aria-label="关闭题目目录"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200 text-2xl font-normal"
                   >
                     &times;
                   </button>
                 </div>
-                <div className="p-6 overflow-y-auto grid grid-cols-6 gap-2">
+                <div className="p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 gap-2">
                   {mcqs.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => jumpToQuestion(i)}
-                      className={`py-2 text-xs font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 hover:border-blue-500 text-slate-700 hover:bg-slate-50"}`}
+                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 hover:border-blue-500 text-slate-700 hover:bg-slate-50"}`}
                     >
                       {i + 1}
                     </button>
@@ -579,31 +580,31 @@
 
     if (view === "flashcard") {
       return (
-        <div className="max-w-2xl mx-auto pt-8 px-4">
+        <div className="max-w-2xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
           {/* 导航头 */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setView("menu")}
-              className="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
+              className="min-h-11 shrink-0 text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
             >
               <ChevronLeft size={18} /> 返回主页
             </button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowNavModal(true)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1"
+                className="min-h-11 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1"
               >
-                <Layers size={14} /> 选卡列表
+                <Layers size={16} /> <span className="hidden sm:inline">选卡列表</span><span className="sm:hidden">选卡</span>
               </button>
-              <div className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-bold">
-                卡片: {currentIdx + 1} / {flashcards.length}
+              <div className="whitespace-nowrap px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold">
+                <span className="hidden sm:inline">卡片: </span>{currentIdx + 1} / {flashcards.length}
               </div>
             </div>
           </div>
 
           {/* 进度条 */}
-          <div className="w-full h-2 bg-slate-200 rounded-full mb-8 overflow-hidden">
+          <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
               className="h-full bg-emerald-600 transition-all duration-300"
               style={{
@@ -623,11 +624,11 @@
                 <div className="p-3 bg-emerald-50 text-emerald-500 rounded-full mt-4 self-center">
                   <Lightbulb size={28} />
                 </div>
-                <div className="my-auto px-4">
+                <div className="my-auto min-h-0 w-full overflow-y-auto overscroll-contain px-2 py-2 scrollbar-hide sm:px-4">
                   <span className="text-xs font-bold text-slate-400 block mb-2">
                     QUESTION {currentIdx + 1}
                   </span>
-                  <h3 className="text-xl font-bold leading-relaxed">
+                  <h3 className="text-lg sm:text-xl font-bold leading-relaxed break-words">
                     {flashcards[currentIdx].q}
                   </h3>
                 </div>
@@ -667,14 +668,14 @@
           </div>
 
           {/* 控制按钮 */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="flex items-center justify-between gap-2 sm:gap-4 mt-5 sm:mt-8">
             <button
               disabled={currentIdx === 0}
               onClick={() => {
                 setCurrentIdx(currentIdx - 1);
                 setFlipped(false);
               }}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-slate-600 hover:text-slate-800 border rounded-xl font-bold shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-white text-slate-600 hover:text-slate-800 border rounded-xl font-bold shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronLeft size={20} /> 上一题
             </button>
@@ -687,7 +688,7 @@
                   setView("menu");
                 }
               }}
-              className="flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-sm transition-all"
+              className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-sm transition-all"
             >
               {currentIdx === flashcards.length - 1 ? "完成复习" : "下一题"}{" "}
               <ChevronRight size={20} />
@@ -696,26 +697,27 @@
 
           {/* 简答题快速导航模态框 */}
           {showNavModal && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col shadow-2xl">
-                <div className="p-5 border-b flex justify-between items-center bg-slate-50">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[85dvh] overflow-hidden flex flex-col shadow-2xl">
+                <div className="p-4 sm:p-5 border-b flex justify-between items-center bg-slate-50">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
                     <Layers size={18} className="text-emerald-500" />{" "}
                     简答题卡片目录
                   </h3>
                   <button
                     onClick={() => setShowNavModal(false)}
-                    className="text-slate-400 hover:text-slate-600 text-xl font-bold"
+                    aria-label="关闭卡片目录"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-200 text-2xl font-normal"
                   >
                     &times;
                   </button>
                 </div>
-                <div className="p-6 overflow-y-auto grid grid-cols-6 gap-2">
+                <div className="p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto grid grid-cols-5 sm:grid-cols-6 gap-2">
                   {flashcards.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => jumpToQuestion(i)}
-                      className={`py-2 text-xs font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 hover:border-emerald-500 text-slate-700 hover:bg-slate-50"}`}
+                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 hover:border-emerald-500 text-slate-700 hover:bg-slate-50"}`}
                     >
                       {i + 1}
                     </button>

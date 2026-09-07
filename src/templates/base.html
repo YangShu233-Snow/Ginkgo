@@ -22,7 +22,7 @@
       }
       .flip-card {
         perspective: 1000px;
-        height: 380px;
+        height: clamp(320px, 55dvh, 380px);
       }
       .flip-card-inner {
         position: relative;
@@ -59,15 +59,198 @@
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
       }
+      .sidebar-shell {
+        visibility: hidden;
+        transition: visibility 0s linear 450ms;
+      }
+      .sidebar-shell aside {
+        transform: translateX(-100%);
+        transition-duration: 360ms;
+      }
+      .js-sidebar-backdrop {
+        opacity: 0;
+        -webkit-backdrop-filter: blur(0);
+        backdrop-filter: blur(0);
+        transition:
+          opacity 450ms ease,
+          -webkit-backdrop-filter 450ms ease,
+          backdrop-filter 450ms ease;
+      }
+      .sidebar-shell.is-open {
+        visibility: visible;
+        transition-delay: 0s;
+      }
+      .sidebar-shell.is-open aside {
+        transform: translateX(0);
+      }
+      .sidebar-shell.is-open .js-sidebar-backdrop {
+        opacity: 1;
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+      }
+      @media (min-width: 768px) {
+        .sidebar-shell {
+          visibility: visible;
+        }
+        .sidebar-shell aside {
+          transform: none;
+        }
+      }
+      @media (max-width: 767px) {
+        .sidebar-shell nav a {
+          display: flex;
+          min-height: 36px;
+          align-items: center;
+          padding-top: 0.5rem;
+          padding-bottom: 0.5rem;
+          font-size: 0.8125rem;
+          line-height: 1.25rem;
+        }
+        .sidebar-shell .js-link-container {
+          position: relative;
+          border-left: 0;
+        }
+        .sidebar-shell .js-link-container::before {
+          position: absolute;
+          top: 0.375rem;
+          bottom: 0.375rem;
+          left: 0;
+          width: 2px;
+          border-radius: 9999px;
+          background: rgb(226 232 240);
+          content: "";
+        }
+        .mobile-question-scroll {
+          max-height: calc(100dvh - 10.75rem);
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          padding-right: 0.125rem;
+          padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+          -webkit-overflow-scrolling: touch;
+          scrollbar-color: rgb(203 213 225) transparent;
+          scrollbar-width: thin;
+        }
+        .flip-card-front,
+        .flip-card-back {
+          padding: 1rem;
+          border-radius: 1rem;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .flip-card-inner,
+        .sidebar-shell aside,
+        .js-sidebar-backdrop {
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
   </head>
-  <body class="bg-slate-50 text-slate-800 h-screen overflow-hidden">
-    <div class="flex h-full w-full">
+  <body class="h-screen h-[100dvh] overflow-hidden bg-slate-50 text-slate-800">
+    <div class="flex h-full w-full flex-col md:flex-row">
+      <!-- 移动端顶部导航 -->
+      <header
+        class="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 md:hidden"
+      >
+        <button
+          type="button"
+          class="js-sidebar-open inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="打开目录"
+          aria-controls="site-sidebar"
+          aria-expanded="false"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div class="js-mobile-site-title truncate font-bold text-slate-900">
+          Site Name
+        </div>
+      </header>
+
       <!-- 引入侧边栏子组件 -->
-      <div class=".js-asider-container"></div>
+      <div
+        class=".js-asider-container sidebar-shell fixed inset-0 z-50 md:static md:z-auto md:h-full md:w-60 md:shrink-0"
+        aria-hidden="true"
+        inert
+      >
+        <button
+          type="button"
+          class="js-sidebar-backdrop absolute inset-0 bg-slate-900/50 md:hidden"
+          aria-label="关闭目录"
+        ></button>
+      </div>
 
       <!-- 右侧主体内容区 -->
-      <main class=".js-quiz-container flex-1 overflow-y-auto p-8"></main>
+      <main
+        class=".js-quiz-container min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-5 md:p-8"
+      ></main>
     </div>
+    <script>
+      (() => {
+        const shell = document.querySelector(".sidebar-shell");
+        const openButton = document.querySelector(".js-sidebar-open");
+        const closeButtons = document.querySelectorAll(
+          ".js-sidebar-close, .js-sidebar-backdrop",
+        );
+        const siteLink = document.querySelector(".js-site-link");
+        const mobileTitle = document.querySelector(".js-mobile-site-title");
+
+        if (!shell || !openButton) return;
+
+        if (siteLink && mobileTitle) {
+          mobileTitle.textContent = siteLink.textContent.trim();
+        }
+
+        const setSidebarOpen = (isOpen) => {
+          shell.classList.toggle("is-open", isOpen);
+          shell.setAttribute("aria-hidden", String(!isOpen));
+          shell.inert = !isOpen;
+          openButton.setAttribute("aria-expanded", String(isOpen));
+
+          if (isOpen) {
+            shell.querySelector(".js-sidebar-close")?.focus();
+          } else {
+            openButton.focus();
+          }
+        };
+
+        openButton.addEventListener("click", () => setSidebarOpen(true));
+        closeButtons.forEach((button) =>
+          button.addEventListener("click", () => setSidebarOpen(false)),
+        );
+        shell.querySelectorAll("nav a").forEach((link) =>
+          link.addEventListener("click", () => setSidebarOpen(false)),
+        );
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && shell.classList.contains("is-open")) {
+            setSidebarOpen(false);
+          }
+        });
+        const syncSidebarWithViewport = () => {
+          if (window.innerWidth >= 768) {
+            shell.classList.remove("is-open");
+            shell.setAttribute("aria-hidden", "false");
+            shell.inert = false;
+            openButton.setAttribute("aria-expanded", "false");
+          } else if (!shell.classList.contains("is-open")) {
+            shell.setAttribute("aria-hidden", "true");
+            shell.inert = true;
+          }
+        };
+
+        window.addEventListener("resize", syncSidebarWithViewport);
+        syncSidebarWithViewport();
+      })();
+    </script>
   </body>
 </html>
