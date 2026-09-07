@@ -1,12 +1,16 @@
 import copy
+import hashlib
 import json
 import logging
+import os
+import re
 import shutil
 import yaml
 from lxml import html
 from pathlib import Path
 from typing import Dict, List, Tuple
-from convert import convert_md_to_json
+from urllib.parse import urlparse
+from ginkgo.convert import convert_md_to_json
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +22,151 @@ SIDEBARHTML_PATH = TEMPLATES_PATH / 'sidebar.html'
 INDEXHTML_PATH = TEMPLATES_PATH / 'index.html'
 QUIZHTML_PATH = TEMPLATES_PATH / 'quiz.html'
 FAVICON_PATH = TEMPLATES_PATH / 'favicon.svg'
+
+
+def _normalize_content(content):
+    """Normalize JSON shorthand into the rich-content representation."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, dict):
+        return content
+
+    images = content.get('images')
+    if images is None and 'image' in content:
+        images = [content['image']]
+    if images is None:
+        images = []
+
+    if not isinstance(images, list):
+        images = [images]
+
+    normalized_images = []
+    for image in images:
+        if isinstance(image, str):
+            normalized_images.append({'src': image, 'alt': ''})
+        elif isinstance(image, dict):
+            normalized_image = dict(image)
+            normalized_image.setdefault('alt', '')
+            normalized_images.append(normalized_image)
+        else:
+            normalized_images.append(image)
+
+    return {
+        'text': content.get('text', ''),
+        'images': normalized_images,
+    }
+
+
+def _validate_content(content)->bool:
+    if isinstance(content, str):
+        return True
+    if not isinstance(content, dict):
+        return False
+
+    text = content.get('text')
+    images = content.get('images')
+    if not isinstance(text, str) or not isinstance(images, list):
+        return False
+    if not text and not images:
+        return False
+
+    for image in images:
+        if not isinstance(image, dict):
+            return False
+        if not isinstance(image.get('src'), str) or not image['src'].strip():
+            return False
+        if not isinstance(image.get('alt', ''), str):
+            return False
+        if 'caption' in image and not isinstance(image['caption'], str):
+            return False
+
+    return True
+
+
+def _normalize_exam_content(mcqs: dict, flashcards: dict):
+    for question in mcqs['questions']:
+        if isinstance(question, dict):
+            question['q'] = _normalize_content(question.get('q'))
+            answers = question.get('a')
+            if isinstance(answers, list):
+                question['a'] = [_normalize_content(answer) for answer in answers]
+
+    for question in flashcards['questions']:
+        if isinstance(question, dict):
+            question['q'] = _normalize_content(question.get('q'))
+            question['a'] = _normalize_content(question.get('a'))
+
+
+def _iter_exam_contents(mcqs: dict, flashcards: dict):
+    for question in mcqs['questions']:
+        yield question['q']
+        yield from question['a']
+    for question in flashcards['questions']:
+        yield question['q']
+        yield question['a']
+
+
+def _is_remote_image(src: str)->bool:
+    parsed = urlparse(src)
+    return parsed.scheme in {'http', 'https'} or src.startswith('//')
+
+
+def _copy_and_rewrite_images(
+    mcqs: dict,
+    flashcards: dict,
+    source_path: Path,
+    output_path: Path,
+    assets_dir: Path,
+):
+    """Copy local question images and rewrite their URLs for the output page."""
+    for content in _iter_exam_contents(mcqs, flashcards):
+        if isinstance(content, str):
+            continue
+
+        for image in content['images']:
+            src = image['src'].strip()
+            if _is_remote_image(src):
+                image['src'] = src
+                continue
+
+            parsed = urlparse(src)
+            if parsed.scheme:
+                raise ValueError(f"Unsupported image URL scheme: {parsed.scheme}")
+
+            local_path = Path(src)
+            if not local_path.is_absolute():
+                local_path = source_path.parent / local_path
+            local_path = local_path.resolve()
+
+            if not local_path.is_file():
+                raise FileNotFoundError(
+                    f"The image referenced by {source_path} does not exist: {src}"
+                )
+
+            with open(local_path, 'rb') as image_file:
+                digest = hashlib.file_digest(image_file, 'sha256').hexdigest()[:12]
+            safe_stem = re.sub(r'[^\w.-]+', '-', local_path.stem, flags=re.UNICODE).strip('-')
+            if not safe_stem:
+                safe_stem = 'image'
+            target_path = assets_dir / f'{safe_stem}-{digest}{local_path.suffix.lower()}'
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            if not target_path.exists():
+                shutil.copy2(local_path, target_path)
+
+            image['src'] = Path(
+                os.path.relpath(target_path, start=output_path.parent)
+            ).as_posix()
+
+
+def _json_for_inline_script(value)->str:
+    """Serialize JSON without allowing data to terminate the script element."""
+    return (
+        json.dumps(value, ensure_ascii=False)
+        .replace('&', '\\u0026')
+        .replace('<', '\\u003c')
+        .replace('>', '\\u003e')
+    )
+
 
 def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
     if not isinstance(exam, dict):
@@ -34,17 +183,32 @@ def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
         metadata[metadata_key] = exam[metadata_key]
 
     # 以防万一，排查一下空卷
-    mcqs: dict = exam.get('mcqs')
-    flashcards: dict = exam.get('flashcards')
+    mcqs = exam.get('mcqs')
+    flashcards = exam.get('flashcards')
 
     if not (mcqs or flashcards):
         raise ValueError("The file questions is empty!")
+
+    if mcqs is None:
+        mcqs = {'description': '', 'questions': []}
+    if flashcards is None:
+        flashcards = {'description': '', 'questions': []}
+    if not isinstance(mcqs, dict) or not isinstance(flashcards, dict):
+        raise ValueError("The mcqs and flashcards sections must be objects!")
     
-    mcqs_questions: List[dict] = mcqs.get('questions')
-    flashcards_questions: List[dict] = flashcards.get('questions')
+    mcqs_questions: List[dict] = mcqs.get('questions', [])
+    flashcards_questions: List[dict] = flashcards.get('questions', [])
+
+    if not isinstance(mcqs_questions, list) or not isinstance(flashcards_questions, list):
+        raise ValueError("The questions fields must be lists!")
+
+    mcqs['questions'] = mcqs_questions
+    flashcards['questions'] = flashcards_questions
 
     if not (mcqs_questions or flashcards_questions):
         raise ValueError("The file questions is empty!")
+
+    _normalize_exam_content(mcqs, flashcards)
     
     # 检查一下 mcqs 和 flashcards 的题目是否符合要求
     # mcqs 每一道题目应当包含 q、a、c；c 可为单个索引，也可为非空索引列表
@@ -64,8 +228,10 @@ def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
             and len(c) == len(set(c))
         )
         is_question_format_legal = (
-            isinstance(q, str)
+            _validate_content(q)
             and isinstance(a, list)
+            and bool(a)
+            and all(_validate_content(answer) for answer in a)
             and (is_single_answer or is_answer_list)
         )
 
@@ -84,7 +250,7 @@ def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
         q = flashcards_question.get('q')
         a = flashcards_question.get('a')
 
-        is_question_format_legal = isinstance(q, str) and isinstance(a, str)
+        is_question_format_legal = _validate_content(q) and _validate_content(a)
 
         if not is_question_format_legal:
             raise ValueError(f"The flashcards question(No.{index+1}) format is not correct!\nq:{q}\na:{a}")
@@ -152,7 +318,14 @@ def rebase_sidebar_links(siderbar_html, prefix: str):
 
     return siderbar_html
 
-def exam_html_generator(website: dict, filepath: Path|str, siderbar_html):
+def exam_html_generator(
+    website: dict,
+    filepath: Path|str,
+    siderbar_html,
+    output_path: Path|None = None,
+    assets_dir: Path|None = None,
+):
+    filepath = Path(filepath)
     try:
         metadata, mcqs, flashcards = exam_loader(filepath=filepath)
     except Exception as e:
@@ -164,11 +337,25 @@ def exam_html_generator(website: dict, filepath: Path|str, siderbar_html):
         authors = ', '.join(authors)
 
     quiz_title = metadata.get('title')
-    quiz_description = f'<p>{' '.join(metadata.get('description'))}</p>' \
+    description = metadata.get('description')
+    if isinstance(description, list):
+        description = ' '.join(description)
+    quiz_description = f'<p>{description or ''}</p>' \
     f'<p>Made by {authors}</p>'
 
-    script_data_content = f'const mcqs = {json.dumps(mcqs.get('questions'), ensure_ascii=False)};\n' \
-    f'const flashcards = {json.dumps(flashcards.get('questions'), ensure_ascii=False)};'
+    if (output_path is None) != (assets_dir is None):
+        raise ValueError("output_path and assets_dir must be provided together")
+    if output_path is not None and assets_dir is not None:
+        _copy_and_rewrite_images(
+            mcqs=mcqs,
+            flashcards=flashcards,
+            source_path=filepath,
+            output_path=Path(output_path),
+            assets_dir=Path(assets_dir),
+        )
+
+    script_data_content = f'const mcqs = {_json_for_inline_script(mcqs.get('questions'))};\n' \
+    f'const flashcards = {_json_for_inline_script(flashcards.get('questions'))};'
 
     # 初始化题目数据
     quiz_html_tree = html.parse(QUIZHTML_PATH, html.HTMLParser(encoding='utf-8'))
@@ -204,9 +391,6 @@ def index_html_generator(website: dict, nav: List[dict], siderbar_html):
     index_body.xpath("//*[contains(@class, 'js-index-category-count')]")[0].text = str(category_count)
     index_body.xpath("//*[contains(@class, 'js-index-quiz-count')]")[0].text = str(quiz_count)
 
-    # 首页侧栏标题同时作为当前页面标记。
-    site_link = siderbar_html.xpath(".//*[contains(@class, 'js-site-link')]")[0]
-    site_link.set('class', 'js-site-link text-blue-600')
     rebase_sidebar_links(siderbar_html, './')
 
     main_html_tree = html.parse(BASEHTML_PATH, html.HTMLParser(encoding='utf-8'))
@@ -254,12 +438,23 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
             sidebar_html = copy.deepcopy(siderbar_html_tpl)
             # 高亮对应的 siderbar link
             now_link_node = sidebar_html.xpath(f'//a[@href="{href}"]')[0]
-            now_link_node.set('class', 'block w-full text-left px-3 py-1.5 text-xs rounded-md transition-all bg-blue-50 text-blue-600 font-bold')
+            now_link_node.set(
+                'class',
+                'js-link-item block min-h-11 w-full rounded-lg bg-brand-50 px-3 py-3 '
+                'text-left text-sm font-bold text-brand-800 transition-all '
+                'hover:bg-brand-100 md:min-h-0 md:py-1.5 md:text-xs',
+            )
             # 修复链接跳转问题
             rebase_sidebar_links(sidebar_html, '../')
 
             try:
-                main_html = exam_html_generator(website=website, filepath=filepath, siderbar_html=sidebar_html)
+                main_html = exam_html_generator(
+                    website=website,
+                    filepath=filepath,
+                    siderbar_html=sidebar_html,
+                    output_path=exam_path,
+                    assets_dir=site_dir / 'assets',
+                )
             except Exception as e:
                 logger.error(f"An exception occurs! The details: {e}")
                 logger.warning(f"The file {filepath} has been skipped.")

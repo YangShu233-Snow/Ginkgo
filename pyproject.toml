@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 77.0.3"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,10 +17,10 @@ dependencies = [
 ]
 
 [project.scripts]
-ginkgo = "cli:cli"
-
-[tool.setuptools.package-data]
-"*" = ["templates/*"]
+ginkgo = "ginkgo.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+ginkgo = ["templates/*"]

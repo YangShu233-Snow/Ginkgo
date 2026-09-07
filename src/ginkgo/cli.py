@@ -1,7 +1,8 @@
 import logging
 import click
 
-from core import main_generator
+from ginkgo.core import main_generator
+from ginkgo.deploy import deploy
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -207,7 +208,21 @@ Do not use `[x]` in `flashcards`.
 
 ---
 
-## 5. Question Separators
+## 5. Images
+
+Preserve images from the original material using standard Markdown image syntax:
+
+```markdown
+- Which structure is shown? ![Cell diagram](./images/cell.png "Cell diagram")
+  - [x] Nucleus
+  - Mitochondrion
+```
+
+Images may appear in question stems, multiple-choice options, flashcard questions, or flashcard answers. Keep each image in the same list item as the content it belongs to. Preserve the original path, alt text, and optional title. Do not invent an image path or replace an image with a textual description.
+
+---
+
+## 6. Question Separators
 
 Different questions within the same section must be separated using:
 
@@ -231,7 +246,7 @@ Do not add `---` after the last question in a section.
 
 ---
 
-## 6. Blank Line Rules
+## 7. Blank Line Rules
 
 Different structural elements must be separated by blank lines.
 
@@ -256,7 +271,7 @@ Do not place headings, blockquotes, questions, or separators directly next to on
 
 ---
 
-## 7. Conversion Boundaries
+## 8. Conversion Boundaries
 
 The conversion must follow all of these rules:
 
@@ -955,7 +970,21 @@ If no section description exists, do not create one.
 
 ---
 
-# 11. Question Separators
+# 11. Images
+
+Preserve images supplied with the original material using standard Markdown image syntax:
+
+```markdown
+- Which structure is shown? ![Cell diagram](./images/cell.png "Cell diagram")
+  - [x] Nucleus
+  - Mitochondrion
+```
+
+Keep each image in the same list item as its question, option, or answer. Preserve the original path, alt text, and optional title. Never invent an image path.
+
+---
+
+# 12. Question Separators
 
 Different questions within the same section must be separated using:
 
@@ -979,7 +1008,7 @@ Do not add `---` after the last question in a section.
 
 ---
 
-# 12. Blank Line Rules
+# 13. Blank Line Rules
 
 Different structural elements must be separated by blank lines.
 
@@ -1004,7 +1033,7 @@ Headings, blockquotes, questions, and separators must not be incorrectly joined 
 
 ---
 
-# 13. Incorrect Examples
+# 14. Incorrect Examples
 
 ## Incorrect: Converting a Fill-in-the-Blank Question to `mcqs`
 
@@ -1108,7 +1137,7 @@ Do not create semantically ambiguous, partially correct, or condition-dependent 
 
 ---
 
-# 14. Output Rules
+# 15. Output Rules
 
 When conversion is completed normally:
 
@@ -1144,7 +1173,7 @@ Stop generation and output only:
 
 ---
 
-# 15. Internal Pre-Output Checklist
+# 16. Internal Pre-Output Checklist
 
 Before generating the final result, perform the following checks internally.
 
@@ -1199,3 +1228,8 @@ def prompt(standard: bool, memory: bool):
     if memory:
         print(MEMORY_SCROLLS_CONVERT_PROMPT)
         return 
+
+@cli.command()
+def gh_deploy():
+    main_generator()
+    deploy()

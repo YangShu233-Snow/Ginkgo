@@ -198,6 +198,37 @@
     </svg>
   );
 
+  const RichContent = ({ value, imageClassName = "max-h-72" }) => {
+    const content =
+      typeof value === "string"
+        ? { text: value, images: [] }
+        : { text: value?.text || "", images: value?.images || [] };
+
+    return (
+      <div className="min-w-0 space-y-3">
+        {content.text && (
+          <div className="whitespace-pre-wrap break-words">{content.text}</div>
+        )}
+        {content.images.map((image, index) => (
+          <figure key={`${image.src}-${index}`} className="space-y-1.5">
+            <img
+              src={image.src}
+              alt={image.alt || ""}
+              loading="lazy"
+              decoding="async"
+              className={`mx-auto w-auto max-w-full rounded-xl object-contain ${imageClassName}`}
+            />
+            {image.caption && (
+              <figcaption className="text-center text-xs font-normal opacity-70">
+                {image.caption}
+              </figcaption>
+            )}
+          </figure>
+        ))}
+      </div>
+    );
+  };
+
   function App() {
     const [view, setView] = useState("menu"); // 'menu', 'quiz', 'flashcard'
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -298,7 +329,7 @@
       return (
         <div className="max-w-2xl mx-auto pt-4 px-0 sm:pt-10 sm:px-4 md:pt-16">
           <div className="text-center mb-7 sm:mb-12">
-            <div className="inline-flex p-3 sm:p-4 bg-blue-50 text-blue-600 rounded-2xl sm:rounded-3xl mb-4">
+            <div className="inline-flex p-3 sm:p-4 bg-brand-50 text-brand-800 rounded-2xl sm:rounded-3xl mb-4">
               <BookOpen size={40} />
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3 break-words">
@@ -315,15 +346,15 @@
                 setView("quiz");
                 resetState();
               }}
-              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors mb-4 w-fit">
+              <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
                 <ListChecks size={28} />
               </div>
               <h3 className="font-bold text-xl text-slate-800 mb-1">
                 选择题闯关
               </h3>
-              <span className="mt-auto text-blue-600 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+              <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                 开始挑战 <ChevronRight size={16} />
               </span>
             </button>
@@ -333,15 +364,15 @@
                 setView("flashcard");
                 resetState();
               }}
-              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors mb-4 w-fit">
+              <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
                 <CreditCard size={28} />
               </div>
               <h3 className="font-bold text-xl text-slate-800 mb-1">
                 简答题抽认卡
               </h3>
-              <span className="mt-auto text-emerald-600 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+              <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
                 开始背诵 <ChevronRight size={16} />
               </span>
             </button>
@@ -369,7 +400,7 @@
               >
                 <Layers size={16} /> <span className="hidden sm:inline">跳转题目</span><span className="sm:hidden">题目</span>
               </button>
-              <div className="whitespace-nowrap px-3 py-2 bg-blue-50 text-blue-700 rounded-xl text-sm font-bold">
+              <div className="whitespace-nowrap px-3 py-2 bg-brand-50 text-brand-800 rounded-xl text-sm font-bold">
                 <span className="hidden sm:inline">进度: </span>{currentIdx + 1} / {mcqs.length}
               </div>
             </div>
@@ -378,7 +409,7 @@
           {/* 进度条 */}
           <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
-              className="h-full bg-blue-600 transition-all duration-300"
+              className="h-full bg-brand-800 transition-all duration-300"
               style={{ width: `${((currentIdx + 1) / mcqs.length) * 100}%` }}
             ></div>
           </div>
@@ -387,24 +418,20 @@
             <div className="mobile-question-scroll">
               <div className="mb-4 sm:mb-6 bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-brand-800 uppercase tracking-wider">
                     QUESTION {currentIdx + 1}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                      getCorrectAnswers(mcqs[currentIdx]).length > 1
-                        ? "bg-violet-100 text-violet-700"
-                        : "bg-blue-100 text-blue-700"
-                    }`}
+                    className="px-2 py-0.5 rounded-full bg-brand-100 text-xs font-bold text-brand-900"
                   >
                     {getCorrectAnswers(mcqs[currentIdx]).length > 1
                       ? "多选题"
                       : "单选题"}
                   </span>
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-800 leading-relaxed break-words">
-                  {mcqs[currentIdx].q}
-                </h2>
+                <div className="text-lg sm:text-xl font-bold text-slate-800 leading-relaxed">
+                  <RichContent value={mcqs[currentIdx].q} />
+                </div>
                 {getCorrectAnswers(mcqs[currentIdx]).length > 1 && (
                   <p className="text-sm text-slate-500 mt-3">
                     可选择多个答案，选好后点击“提交答案”
@@ -430,7 +457,7 @@
                     }
                   } else if (isSelected) {
                     style =
-                      "border-violet-500 bg-violet-50 text-violet-800 font-semibold shadow-sm";
+                      "border-brand-500 bg-brand-50 text-brand-900 font-semibold shadow-sm";
                   }
                   return (
                     <button
@@ -438,11 +465,16 @@
                       onClick={() => handleQuizAnswer(i)}
                       aria-pressed={isSelected}
                       disabled={isAnswerSubmitted}
-                      className={`min-h-14 p-4 sm:p-5 text-left border-2 rounded-xl transition-all duration-200 flex items-center justify-between break-words focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${style}`}
+                      className={`min-h-14 p-4 sm:p-5 text-left border-2 rounded-xl transition-all duration-200 flex items-center justify-between break-words focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${style}`}
                     >
-                      <span className="leading-relaxed">
-                        {String.fromCharCode(65 + i)}. {opt}
-                      </span>
+                      <div className="flex min-w-0 flex-1 items-start gap-1 leading-relaxed">
+                        <span className="shrink-0">
+                          {String.fromCharCode(65 + i)}.
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <RichContent value={opt} imageClassName="max-h-48" />
+                        </div>
+                      </div>
                       {isAnswerSubmitted && isCorrectOption && (
                         <CheckCircle2 className="text-emerald-500 shrink-0 ml-3" />
                       )}
@@ -452,7 +484,7 @@
                       {!isAnswerSubmitted &&
                         isSelected &&
                         correctAnswers.length > 1 && (
-                          <CheckCircle2 className="text-violet-500 shrink-0 ml-3" />
+                          <CheckCircle2 className="text-brand-500 shrink-0 ml-3" />
                         )}
                     </button>
                   );
@@ -463,7 +495,7 @@
                   <button
                     onClick={() => submitQuizAnswer(selectedOptions)}
                     disabled={selectedOptions.length === 0}
-                    className="mt-5 w-full px-6 py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-colors shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:shadow-none"
+                    className="mt-5 w-full px-6 py-3 bg-brand-800 text-white rounded-xl font-bold hover:bg-brand-900 transition-colors shadow-md disabled:bg-slate-300 disabled:cursor-not-allowed disabled:shadow-none"
                   >
                     提交答案
                     {selectedOptions.length > 0 &&
@@ -482,7 +514,7 @@
               </h2>
               <p className="text-slate-500 mb-6">
                 您的正确率达到了{" "}
-                <span className="text-blue-600 font-bold text-2xl">
+                <span className="text-brand-800 font-bold text-2xl">
                   {Math.round((score / mcqs.length) * 100)}%
                 </span>
               </p>
@@ -508,9 +540,15 @@
                   <div className="space-y-4">
                     {wrongAnswers.map((item, idx) => (
                       <div key={idx} className="text-xs">
-                        <p className="font-semibold text-slate-800">
-                          {idx + 1}. {item.q}
-                        </p>
+                        <div className="flex items-start gap-1 font-semibold text-slate-800">
+                          <span className="shrink-0">{idx + 1}.</span>
+                          <div className="min-w-0 flex-1">
+                            <RichContent
+                              value={item.q}
+                              imageClassName="max-h-32"
+                            />
+                          </div>
+                        </div>
                         <p className="text-rose-600 mt-1">
                           您的回答: {item.userLetter} (错误)
                         </p>
@@ -535,7 +573,7 @@
                     resetState();
                     setView("menu");
                   }}
-                  className="min-h-12 w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-xl sm:rounded-full font-bold hover:bg-blue-700 transition-colors shadow-md"
+                  className="min-h-12 w-full sm:w-auto px-6 py-3 bg-brand-800 text-white rounded-xl sm:rounded-full font-bold hover:bg-brand-900 transition-colors shadow-md"
                 >
                   返回主页
                 </button>
@@ -549,7 +587,7 @@
               <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[85dvh] overflow-hidden flex flex-col shadow-2xl">
                 <div className="p-4 sm:p-5 border-b flex justify-between items-center bg-slate-50">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <Layers size={18} className="text-blue-500" />{" "}
+                    <Layers size={18} className="text-brand-600" />{" "}
                     选择题目录跳转
                   </h3>
                   <button
@@ -565,7 +603,7 @@
                     <button
                       key={i}
                       onClick={() => jumpToQuestion(i)}
-                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-blue-600 border-blue-600 text-white" : "border-slate-200 hover:border-blue-500 text-slate-700 hover:bg-slate-50"}`}
+                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-brand-800 border-brand-800 text-white" : "border-slate-200 hover:border-brand-500 text-slate-700 hover:bg-brand-50"}`}
                     >
                       {i + 1}
                     </button>
@@ -597,7 +635,7 @@
               >
                 <Layers size={16} /> <span className="hidden sm:inline">选卡列表</span><span className="sm:hidden">选卡</span>
               </button>
-              <div className="whitespace-nowrap px-3 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold">
+              <div className="whitespace-nowrap px-3 py-2 bg-brand-50 text-brand-800 rounded-xl text-sm font-bold">
                 <span className="hidden sm:inline">卡片: </span>{currentIdx + 1} / {flashcards.length}
               </div>
             </div>
@@ -606,7 +644,7 @@
           {/* 进度条 */}
           <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
-              className="h-full bg-emerald-600 transition-all duration-300"
+              className="h-full bg-brand-800 transition-all duration-300"
               style={{
                 width: `${((currentIdx + 1) / flashcards.length) * 100}%`,
               }}
@@ -621,16 +659,19 @@
             <div className="flip-card-inner">
               {/* 卡片正面 (问题) */}
               <div className="flip-card-front bg-white border border-slate-200 text-slate-800 flex flex-col justify-between">
-                <div className="p-3 bg-emerald-50 text-emerald-500 rounded-full mt-4 self-center">
+                <div className="p-3 bg-brand-50 text-brand-600 rounded-full mt-4 self-center">
                   <Lightbulb size={28} />
                 </div>
                 <div className="my-auto min-h-0 w-full overflow-y-auto overscroll-contain px-2 py-2 scrollbar-hide sm:px-4">
                   <span className="text-xs font-bold text-slate-400 block mb-2">
                     QUESTION {currentIdx + 1}
                   </span>
-                  <h3 className="text-lg sm:text-xl font-bold leading-relaxed break-words">
-                    {flashcards[currentIdx].q}
-                  </h3>
+                  <div className="text-lg sm:text-xl font-bold leading-relaxed">
+                    <RichContent
+                      value={flashcards[currentIdx].q}
+                      imageClassName="max-h-48"
+                    />
+                  </div>
                 </div>
                 <p className="text-slate-400 text-xs font-medium pb-4 flex items-center gap-1 animate-pulse">
                   <svg
@@ -651,14 +692,17 @@
               </div>
 
               {/* 卡片背面 (要点解析) */}
-              <div className="flip-card-back bg-slate-900 text-white border border-slate-800 text-left items-start overflow-y-auto scrollbar-hide flex flex-col justify-between">
+              <div className="flip-card-back bg-brand-950 text-white border border-brand-900 text-left items-start overflow-y-auto scrollbar-hide flex flex-col justify-between">
                 <div className="w-full">
-                  <h4 className="text-emerald-400 font-bold mb-4 flex items-center gap-2 border-b border-slate-800 pb-2">
+                  <h4 className="text-brand-300 font-bold mb-4 flex items-center gap-2 border-b border-brand-900 pb-2">
                     <CheckCircle2 size={18} /> 核心要点 / 答案分析
                   </h4>
-                  <p className="text-base leading-relaxed text-slate-200 whitespace-pre-wrap font-medium">
-                    {flashcards[currentIdx].a}
-                  </p>
+                  <div className="text-base leading-relaxed text-slate-200 font-medium">
+                    <RichContent
+                      value={flashcards[currentIdx].a}
+                      imageClassName="max-h-48"
+                    />
+                  </div>
                 </div>
                 <p className="pt-6 text-slate-500 text-xs text-center w-full mt-auto">
                   点击卡片返回问题
@@ -688,7 +732,7 @@
                   setView("menu");
                 }
               }}
-              className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-sm transition-all"
+              className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-brand-800 hover:bg-brand-900 text-white rounded-xl font-bold shadow-sm transition-all"
             >
               {currentIdx === flashcards.length - 1 ? "完成复习" : "下一题"}{" "}
               <ChevronRight size={20} />
@@ -701,7 +745,7 @@
               <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[85dvh] overflow-hidden flex flex-col shadow-2xl">
                 <div className="p-4 sm:p-5 border-b flex justify-between items-center bg-slate-50">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <Layers size={18} className="text-emerald-500" />{" "}
+                    <Layers size={18} className="text-brand-600" />{" "}
                     简答题卡片目录
                   </h3>
                   <button
@@ -717,7 +761,7 @@
                     <button
                       key={i}
                       onClick={() => jumpToQuestion(i)}
-                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-200 hover:border-emerald-500 text-slate-700 hover:bg-slate-50"}`}
+                      className={`min-h-11 py-2 text-sm font-bold rounded-lg border transition-all ${currentIdx === i ? "bg-brand-800 border-brand-800 text-white" : "border-slate-200 hover:border-brand-500 text-slate-700 hover:bg-brand-50"}`}
                     >
                       {i + 1}
                     </button>

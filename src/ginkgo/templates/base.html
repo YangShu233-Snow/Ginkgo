@@ -6,6 +6,29 @@
     <title></title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#eef8f4",
+                100: "#d7eee5",
+                200: "#afe0d0",
+                300: "#7ccab4",
+                400: "#48aa8f",
+                500: "#278b70",
+                600: "#176f58",
+                700: "#105a46",
+                800: "#054b35",
+                900: "#063d2f",
+                950: "#02241c",
+              },
+            },
+          },
+        },
+      };
+    </script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -153,7 +176,7 @@
       >
         <button
           type="button"
-          class="js-sidebar-open inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          class="js-sidebar-open inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-brand-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           aria-label="打开目录"
           aria-controls="site-sidebar"
           aria-expanded="false"

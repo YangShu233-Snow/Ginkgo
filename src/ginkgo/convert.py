@@ -8,6 +8,48 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
+def _content_from_element(element):
+    """Convert a Markdown list item into a plain string or rich content."""
+    text = ''.join(element.itertext()).strip()
+    images = []
+
+    for image_element in element.xpath('.//img'):
+        image = {
+            'src': image_element.get('src', '').strip(),
+            'alt': image_element.get('alt', ''),
+        }
+        title = image_element.get('title')
+        if title:
+            image['caption'] = title
+        images.append(image)
+
+    if not images:
+        return text
+
+    return {
+        'text': text,
+        'images': images,
+    }
+
+
+def _extract_correct_marker(content):
+    """Remove a leading [x] marker while preserving rich content data."""
+    text = content if isinstance(content, str) else content['text']
+    is_correct = bool(re.match(r'^\[x\]', text, flags=re.IGNORECASE))
+
+    if not is_correct:
+        return False, content
+
+    clean_text = re.sub(r'^\[x\]\s*', '', text, count=1, flags=re.IGNORECASE)
+    if isinstance(content, str):
+        return True, clean_text
+
+    content = dict(content)
+    content['text'] = clean_text
+    return True, content
+
+
 def mcqs_converter(mcqs_html)->dict|None:
     description_element = mcqs_html.xpath('//blockquote/p')
     description = ""
@@ -23,8 +65,6 @@ def mcqs_converter(mcqs_html)->dict|None:
         'description': description,
         'questions': []
     }
-    correct_pattern = r'^\[x\]'
-    
     for element in questions_element:
         question = {
             'q': '',
@@ -34,14 +74,14 @@ def mcqs_converter(mcqs_html)->dict|None:
         
         for i, li in enumerate(element):
             if li == element[0]:
-                question['q'] = li.text
+                question['q'] = _content_from_element(li)
                 continue
 
-            answer = li.text
+            answer = _content_from_element(li)
+            is_correct, answer = _extract_correct_marker(answer)
 
-            if re.match(correct_pattern, answer):
+            if is_correct:
                 question['c'].append(i-1)
-                answer = answer.replace('[x]', '')
 
             question['a'].append(answer)
 
@@ -67,13 +107,16 @@ def flashcards_converter(flashcards_html)->dict|None:
     }
 
     for element in questions_element:
+        if len(element) < 2:
+            raise ValueError("A flashcard must contain both a question and an answer")
+
         question = {
             'q': '',
             'a': ''
         }
 
-        question['q'] = element[0].text
-        question['a'] = element[0].text
+        question['q'] = _content_from_element(element[0])
+        question['a'] = _content_from_element(element[1])
 
         flashcards['questions'].append(question)
 
@@ -88,20 +131,38 @@ def convert_md_to_json(filepath: Path)->str:
 
     html_parser = html.HTMLParser(encoding='utf-8')
 
-    if '<h2>flashcards</h2>' in md:
-        tmp = md.split('<h2>flashcards</h2>')
-        mcqs, flashcards = tmp if len(tmp) > 1 else None, tmp[0]
-        mcqs_html = html.fromstring(flashcards.encode(), parser=html_parser) if mcqs is not None else None
-        flashcards_html = html.fromstring(flashcards.encode(), parser=html_parser)
-        md_html = flashcards_html
-    elif '<h2>mcqs</h2>' in md:
-        mcqs, flashcards = md, None
-        mcqs_html = html.fromstring(mcqs.encode(), parser=html_parser)
-        flashcards_html = None
-        md_html = mcqs_html
-    else:
+    section_pattern = re.compile(r'<h2>(mcqs|flashcards)</h2>')
+    section_matches = list(section_pattern.finditer(md))
+    if not section_matches:
         logger.error(f'The markdown {filepath} format isn\'t valid')
         raise ValueError(f'The markdown {filepath} format isn\'t valid')
+
+    sections = {}
+    for index, match in enumerate(section_matches):
+        section_name = match.group(1)
+        if section_name in sections:
+            raise ValueError(f'The markdown {filepath} contains duplicate {section_name} sections')
+
+        section_end = (
+            section_matches[index + 1].start()
+            if index + 1 < len(section_matches)
+            else len(md)
+        )
+        sections[section_name] = md[match.start():section_end]
+
+    mcqs = sections.get('mcqs')
+    flashcards = sections.get('flashcards')
+    mcqs_html = (
+        html.fromstring(mcqs.encode(), parser=html_parser)
+        if mcqs is not None
+        else None
+    )
+    flashcards_html = (
+        html.fromstring(flashcards.encode(), parser=html_parser)
+        if flashcards is not None
+        else None
+    )
+    md_html = html.fromstring(md.encode(), parser=html_parser)
 
     title = metadata.get('title') if metadata.get('title') else md_html.xpath('//h1')[0].text if md_html.xpath('//h1') else None
     if isinstance(title, list):
