@@ -108,7 +108,7 @@ def flashcards_converter(flashcards_html)->dict|None:
 
     for element in questions_element:
         if len(element) < 2:
-            raise ValueError("A flashcard must contain both a question and an answer")
+            raise ValueError(f"A flashcard must contain both a question and an answer. {_content_from_element(element[0])}")
 
         question = {
             'q': '',

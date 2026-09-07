@@ -3,8 +3,9 @@ requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Ginkgo"
-version = "0.0.1"
+name = "ginkgo-flashcards"
+version = "0.1.1"
+readme = "README.md"
 authors = [
     { name = "Yangshu233", email = "gm.yangshu233@gmail.com" },
 ]
@@ -13,7 +14,8 @@ dependencies = [
     "pyyaml>=6.0.3",
     "lxml>=6.1.1",
     "markdown>=3.10.2",
-    "click>=8.4.2"
+    "click>=8.4.2",
+    "ghp-import>= 2.1.0"
 ]
 
 [project.scripts]

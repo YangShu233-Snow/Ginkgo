@@ -241,6 +241,8 @@
 
     // 答错记录追踪（供最后结果页查看分析）
     const [wrongAnswers, setWrongAnswers] = useState([]);
+    const hasMcqs = mcqs.length > 0;
+    const hasFlashcards = flashcards.length > 0;
 
     const resetState = () => {
       setCurrentIdx(0);
@@ -340,42 +342,48 @@
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3 sm:gap-6 mb-8">
-            <button
-              onClick={() => {
-                setView("quiz");
-                resetState();
-              }}
-              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
-                <ListChecks size={28} />
-              </div>
-              <h3 className="font-bold text-xl text-slate-800 mb-1">
-                选择题闯关
-              </h3>
-              <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                开始挑战 <ChevronRight size={16} />
-              </span>
-            </button>
+          <div
+            className={`grid gap-3 sm:gap-6 mb-8 ${hasMcqs && hasFlashcards ? "sm:grid-cols-2" : "grid-cols-1"}`}
+          >
+            {hasMcqs && (
+              <button
+                onClick={() => {
+                  setView("quiz");
+                  resetState();
+                }}
+                className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
+                  <ListChecks size={28} />
+                </div>
+                <h3 className="font-bold text-xl text-slate-800 mb-1">
+                  选择题闯关
+                </h3>
+                <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  开始挑战 <ChevronRight size={16} />
+                </span>
+              </button>
+            )}
 
-            <button
-              onClick={() => {
-                setView("flashcard");
-                resetState();
-              }}
-              className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
-                <CreditCard size={28} />
-              </div>
-              <h3 className="font-bold text-xl text-slate-800 mb-1">
-                简答题抽认卡
-              </h3>
-              <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                开始背诵 <ChevronRight size={16} />
-              </span>
-            </button>
+            {hasFlashcards && (
+              <button
+                onClick={() => {
+                  setView("flashcard");
+                  resetState();
+                }}
+                className="flex min-h-40 flex-col text-left p-5 sm:p-6 bg-white border border-slate-200 rounded-2xl hover:border-brand-500 hover:shadow-lg transition-all group focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <div className="p-3 bg-brand-50 text-brand-800 rounded-xl group-hover:bg-brand-800 group-hover:text-white transition-colors mb-4 w-fit">
+                  <CreditCard size={28} />
+                </div>
+                <h3 className="font-bold text-xl text-slate-800 mb-1">
+                  简答题抽认卡
+                </h3>
+                <span className="mt-auto text-brand-800 text-sm font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  开始背诵 <ChevronRight size={16} />
+                </span>
+              </button>
+            )}
           </div>
         </div>
       );
@@ -654,9 +662,14 @@
           {/* 翻转卡片结构 */}
           <div
             className={`flip-card ${flipped ? "flipped" : ""} w-full`}
-            onClick={() => setFlipped(!flipped)}
+            onClick={() => setFlipped((isFlipped) => !isFlipped)}
           >
-            <div className="flip-card-inner">
+            <div
+              className="flip-card-inner"
+              style={{
+                transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+              }}
+            >
               {/* 卡片正面 (问题) */}
               <div className="flip-card-front bg-white border border-slate-200 text-slate-800 flex flex-col justify-between">
                 <div className="p-3 bg-brand-50 text-brand-600 rounded-full mt-4 self-center">
