@@ -57,45 +57,157 @@ def _restore_metadata_math(metadata: dict, protected):
     return metadata
 
 
-def _content_from_element(element):
-    """Convert a Markdown list item into a plain string or rich content."""
-    text = ''.join(element.itertext()).strip()
-    images = []
+def _append_text_block(blocks, text):
+    if not text:
+        return
+    if blocks and blocks[-1]['type'] == 'text':
+        blocks[-1]['content'] += text
+    else:
+        blocks.append({'type': 'text', 'content': text})
 
-    for image_element in element.xpath('.//img'):
-        image = {
-            'src': image_element.get('src', '').strip(),
-            'alt': image_element.get('alt', ''),
-        }
-        title = image_element.get('title')
-        if title:
-            image['caption'] = title
-        images.append(image)
 
-    if not images:
-        return text
+def _image_block(image_element):
+    image = {
+        'type': 'image',
+        'src': image_element.get('src', '').strip(),
+    }
+    alt = image_element.get('alt', '')
+    if alt:
+        image['alt'] = alt
+    title = image_element.get('title')
+    if title:
+        image['caption'] = title
+    return image
+
+
+def _cell_text(cell):
+    return ''.join(cell.itertext()).strip()
+
+
+def _cell_alignment(cell):
+    alignment = (cell.get('align') or '').strip().lower()
+    style = cell.get('style') or ''
+    style_match = re.search(r'text-align\s*:\s*(left|center|right)', style)
+    if style_match:
+        alignment = style_match.group(1)
+    if alignment == 'center':
+        return 'middle'
+    return alignment if alignment in {'left', 'right'} else 'left'
+
+
+def _table_block(table_element):
+    header_cells = table_element.xpath('./thead/tr[1]/*[self::th or self::td]')
+    body_rows = table_element.xpath('./tbody/tr')
+
+    direct_rows = table_element.xpath('./tr')
+    if not header_cells and direct_rows:
+        first_cells = direct_rows[0].xpath('./*[self::th or self::td]')
+        if first_cells and all(cell.tag.lower() == 'th' for cell in first_cells):
+            header_cells = first_cells
+            direct_rows = direct_rows[1:]
+    body_rows.extend(direct_rows)
+
+    headers = [_cell_text(cell) for cell in header_cells]
+    rows = [
+        [_cell_text(cell) for cell in row.xpath('./*[self::th or self::td]')]
+        for row in body_rows
+    ]
+    column_count = max([len(headers), *(len(row) for row in rows)], default=0)
+    align = [
+        _cell_alignment(header_cells[index])
+        if index < len(header_cells)
+        else 'left'
+        for index in range(column_count)
+    ]
 
     return {
-        'text': text,
-        'images': images,
+        'type': 'table',
+        'headers': headers,
+        'rows': rows,
+        'align': align,
     }
 
 
-def _extract_correct_marker(content):
-    """Remove a leading [x] marker while preserving rich content data."""
-    text = content if isinstance(content, str) else content['text']
-    is_correct = bool(re.match(r'^\[x\]', text, flags=re.IGNORECASE))
+def _content_blocks_from_element(element, *, allow_tables=True):
+    """Convert a list item into ordered text, image, and table blocks."""
+    blocks = []
 
-    if not is_correct:
-        return False, content
+    def walk(node):
+        tag = node.tag.lower() if isinstance(node.tag, str) else ''
+        if tag in {'ul', 'ol'}:
+            return
+        if tag == 'table':
+            if not allow_tables:
+                raise ValueError('Tables are not supported inside options')
+            blocks.append(_table_block(node))
+            return
+        if tag == 'img':
+            blocks.append(_image_block(node))
+            return
+        if tag == 'br':
+            _append_text_block(blocks, '\n')
+            return
 
-    clean_text = re.sub(r'^\[x\]\s*', '', text, count=1, flags=re.IGNORECASE)
-    if isinstance(content, str):
-        return True, clean_text
+        _append_text_block(blocks, node.text)
+        for child in node:
+            walk(child)
+            _append_text_block(blocks, child.tail)
 
-    content = dict(content)
-    content['text'] = clean_text
-    return True, content
+        if tag in {'p', 'div'}:
+            _append_text_block(blocks, '\n')
+
+    walk(element)
+
+    normalized_blocks = []
+    for block in blocks:
+        if block['type'] == 'text':
+            content = block['content'].strip()
+            if not content:
+                continue
+            block = {'type': 'text', 'content': content}
+        normalized_blocks.append(block)
+    return normalized_blocks
+
+
+def _extract_correct_marker(elements):
+    """Remove a leading [x] marker from an option's first text block."""
+    elements = [dict(element) for element in elements]
+    for index, element in enumerate(elements):
+        if element['type'] != 'text':
+            continue
+        text = element['content']
+        if not re.match(r'^\[x\]', text, flags=re.IGNORECASE):
+            return False, elements
+
+        clean_text = re.sub(
+            r'^\[x\]\s*',
+            '',
+            text,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if clean_text:
+            elements[index]['content'] = clean_text
+        else:
+            elements.pop(index)
+        return True, elements
+    return False, elements
+
+
+def _top_level_lists(section_html):
+    return section_html.xpath('//ul[not(ancestor::li)]')
+
+
+def _question_and_nested_items(question_list):
+    direct_items = question_list.xpath('./li')
+    if not direct_items:
+        return None, []
+
+    question_item = direct_items[0]
+    nested_lists = question_item.xpath('./ul[1]')
+    if nested_lists:
+        return question_item, nested_lists[0].xpath('./li')
+    return question_item, direct_items[1:]
 
 
 def mcqs_converter(mcqs_html)->dict|None:
@@ -105,7 +217,7 @@ def mcqs_converter(mcqs_html)->dict|None:
     if description_element:
         description = description_element[0].text
 
-    questions_element = mcqs_html.xpath('//ul')
+    questions_element = _top_level_lists(mcqs_html)
     if not questions_element:
         return None
     
@@ -114,26 +226,28 @@ def mcqs_converter(mcqs_html)->dict|None:
         'questions': []
     }
     for element in questions_element:
+        question_item, option_items = _question_and_nested_items(element)
+        if question_item is None:
+            continue
+
         question = {
-            'q': '',
-            'a': [],
-            'c': []
+            'question': _content_blocks_from_element(question_item),
+            'options': [],
         }
-        
-        for i, li in enumerate(element):
-            if li == element[0]:
-                question['q'] = _content_from_element(li)
-                continue
+        for option_item in option_items:
+            option_elements = _content_blocks_from_element(
+                option_item,
+                allow_tables=False,
+            )
+            is_correct, option_elements = _extract_correct_marker(option_elements)
+            if len(option_elements) != 1:
+                raise ValueError(
+                    'Each option must contain exactly one text or image element'
+                )
+            option = option_elements[0]
+            option['correct'] = is_correct
+            question['options'].append(option)
 
-            answer = _content_from_element(li)
-            is_correct, answer = _extract_correct_marker(answer)
-
-            if is_correct:
-                question['c'].append(i-1)
-
-            question['a'].append(answer)
-
-        
         mcqs['questions'].append(question)
     
     return mcqs
@@ -145,7 +259,7 @@ def flashcards_converter(flashcards_html)->dict|None:
     if description_element:
         description = description_element[0].text
 
-    questions_element = flashcards_html.xpath('//ul')
+    questions_element = _top_level_lists(flashcards_html)
     if not questions_element:
         return None
     
@@ -155,23 +269,29 @@ def flashcards_converter(flashcards_html)->dict|None:
     }
 
     for element in questions_element:
-        if len(element) < 2:
-            raise ValueError(f"A flashcard must contain both a question and an answer. {_content_from_element(element[0])}")
+        question_item, answer_items = _question_and_nested_items(element)
+        if question_item is None or not answer_items:
+            question_content = (
+                _content_blocks_from_element(question_item)
+                if question_item is not None
+                else []
+            )
+            raise ValueError(
+                'A flashcard must contain both a question and an answer. '
+                f'{question_content}'
+            )
 
         question = {
-            'q': '',
-            'a': ''
+            'question': _content_blocks_from_element(question_item),
+            'answer': _content_blocks_from_element(answer_items[0]),
         }
-
-        question['q'] = _content_from_element(element[0])
-        question['a'] = _content_from_element(element[1])
 
         flashcards['questions'].append(question)
 
     return flashcards
 
 def convert_md_to_json(filepath: Path)->str:
-    md_parser = markdown.Markdown(extensions=['meta'])
+    md_parser = markdown.Markdown(extensions=['meta', 'tables'])
     with open(filepath, 'r', encoding='utf-8') as f:
         markdown_source, protected_math = _protect_math(f.read())
         md = _restore_math(md_parser.convert(markdown_source), protected_math)

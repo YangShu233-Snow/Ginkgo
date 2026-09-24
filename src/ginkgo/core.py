@@ -24,86 +24,230 @@ QUIZHTML_PATH = TEMPLATES_PATH / 'quiz.html'
 FAVICON_PATH = TEMPLATES_PATH / 'favicon.svg'
 
 
-def _normalize_content(content):
-    """Normalize JSON shorthand into the rich-content representation."""
+def _normalize_element(element):
+    if isinstance(element, str):
+        return {'type': 'text', 'content': element}
+    if not isinstance(element, dict):
+        return element
+
+    element = dict(element)
+    element_type = element.get('type')
+    if element_type == 'text':
+        return {
+            'type': 'text',
+            'content': element.get('content', ''),
+        }
+    if element_type == 'image':
+        normalized = {
+            'type': 'image',
+            'src': element.get('src', ''),
+        }
+        if 'alt' in element:
+            normalized['alt'] = element['alt']
+        if 'caption' in element:
+            normalized['caption'] = element['caption']
+        return normalized
+    if element_type == 'table':
+        align = element.get('align', [])
+        if isinstance(align, list):
+            align = [
+                'middle' if value == 'center' else value
+                for value in align
+            ]
+        return {
+            'type': 'table',
+            'headers': element.get('headers', []),
+            'rows': element.get('rows', []),
+            'align': align,
+        }
+    return element
+
+
+def _content_to_elements(content):
+    """Normalize current and legacy content into an ordered element list."""
+    if isinstance(content, list):
+        return [_normalize_element(element) for element in content]
     if isinstance(content, str):
-        return content
+        return [_normalize_element(content)]
     if not isinstance(content, dict):
         return content
+    if 'type' in content:
+        return [_normalize_element(content)]
+
+    elements = []
+    text = content.get('text', '')
+    if text:
+        elements.append({'type': 'text', 'content': text})
 
     images = content.get('images')
     if images is None and 'image' in content:
         images = [content['image']]
     if images is None:
         images = []
-
     if not isinstance(images, list):
         images = [images]
 
-    normalized_images = []
     for image in images:
         if isinstance(image, str):
-            normalized_images.append({'src': image, 'alt': ''})
+            elements.append({'type': 'image', 'src': image})
         elif isinstance(image, dict):
-            normalized_image = dict(image)
-            normalized_image.setdefault('alt', '')
-            normalized_images.append(normalized_image)
+            elements.append(_normalize_element({'type': 'image', **image}))
         else:
-            normalized_images.append(image)
+            elements.append(image)
+    return elements
+
+
+def _correct_indexes(value):
+    if type(value) is int:
+        return [value]
+    if (
+        isinstance(value, list)
+        and bool(value)
+        and all(type(index) is int for index in value)
+        and len(value) == len(set(value))
+    ):
+        return value
+    return []
+
+
+def _normalize_mcq_question(question):
+    if not isinstance(question, dict):
+        return question
+
+    if 'question' in question or 'options' in question:
+        question_elements = _content_to_elements(question.get('question'))
+        raw_options = question.get('options')
+        fallback_correct = set(_correct_indexes(question.get('c')))
+    else:
+        question_elements = _content_to_elements(question.get('q'))
+        raw_options = question.get('a')
+        fallback_correct = set(_correct_indexes(question.get('c')))
+
+    if not isinstance(raw_options, list):
+        return {
+            'question': question_elements,
+            'options': raw_options,
+        }
+
+    options = []
+    for index, option in enumerate(raw_options):
+        if isinstance(option, dict) and 'elements' in option:
+            elements = _content_to_elements(option.get('elements'))
+            correct = option.get('correct', index in fallback_correct)
+        elif isinstance(option, dict) and 'type' in option:
+            option_element = dict(option)
+            correct = option_element.pop(
+                'correct',
+                index in fallback_correct,
+            )
+            elements = _content_to_elements(option_element)
+        else:
+            elements = _content_to_elements(option)
+            correct = index in fallback_correct
+        if not isinstance(elements, list) or len(elements) != 1:
+            options.append({
+                'type': 'invalid',
+                'correct': correct,
+            })
+            continue
+        normalized_option = dict(elements[0])
+        normalized_option['correct'] = correct
+        options.append(normalized_option)
 
     return {
-        'text': content.get('text', ''),
-        'images': normalized_images,
+        'question': question_elements,
+        'options': options,
     }
 
 
-def _validate_content(content)->bool:
-    if isinstance(content, str):
-        return True
-    if not isinstance(content, dict):
-        return False
-
-    text = content.get('text')
-    images = content.get('images')
-    if not isinstance(text, str) or not isinstance(images, list):
-        return False
-    if not text and not images:
-        return False
-
-    for image in images:
-        if not isinstance(image, dict):
-            return False
-        if not isinstance(image.get('src'), str) or not image['src'].strip():
-            return False
-        if not isinstance(image.get('alt', ''), str):
-            return False
-        if 'caption' in image and not isinstance(image['caption'], str):
-            return False
-
-    return True
+def _normalize_flashcard_question(question):
+    if not isinstance(question, dict):
+        return question
+    if 'question' in question or 'answer' in question:
+        question_content = question.get('question')
+        answer_content = question.get('answer')
+    else:
+        question_content = question.get('q')
+        answer_content = question.get('a')
+    return {
+        'question': _content_to_elements(question_content),
+        'answer': _content_to_elements(answer_content),
+    }
 
 
 def _normalize_exam_content(mcqs: dict, flashcards: dict):
+    mcqs['questions'] = [
+        _normalize_mcq_question(question)
+        for question in mcqs['questions']
+    ]
+    flashcards['questions'] = [
+        _normalize_flashcard_question(question)
+        for question in flashcards['questions']
+    ]
+
+
+def _validate_element(element, allowed_types)->bool:
+    if not isinstance(element, dict) or element.get('type') not in allowed_types:
+        return False
+
+    if element['type'] == 'text':
+        return (
+            isinstance(element.get('content'), str)
+            and bool(element['content'].strip())
+        )
+    if element['type'] == 'image':
+        return (
+            isinstance(element.get('src'), str)
+            and bool(element['src'].strip())
+            and isinstance(element.get('alt', ''), str)
+            and isinstance(element.get('caption', ''), str)
+        )
+
+    headers = element.get('headers')
+    rows = element.get('rows')
+    align = element.get('align')
+    if (
+        not isinstance(headers, list)
+        or not all(isinstance(cell, str) for cell in headers)
+        or not isinstance(rows, list)
+        or not all(
+            isinstance(row, list)
+            and all(isinstance(cell, str) for cell in row)
+            for row in rows
+        )
+        or not isinstance(align, list)
+        or not all(value in {'left', 'middle', 'right'} for value in align)
+    ):
+        return False
+
+    column_count = max([len(headers), *(len(row) for row in rows)], default=0)
+    return (
+        column_count > 0
+        and len(headers) in {0, column_count}
+        and all(len(row) == column_count for row in rows)
+        and len(align) == column_count
+    )
+
+
+def _validate_elements(elements, allowed_types)->bool:
+    return (
+        isinstance(elements, list)
+        and bool(elements)
+        and all(
+            _validate_element(element, allowed_types)
+            for element in elements
+        )
+    )
+
+
+def _iter_exam_elements(mcqs: dict, flashcards: dict):
     for question in mcqs['questions']:
-        if isinstance(question, dict):
-            question['q'] = _normalize_content(question.get('q'))
-            answers = question.get('a')
-            if isinstance(answers, list):
-                question['a'] = [_normalize_content(answer) for answer in answers]
-
+        yield from question['question']
+        for option in question['options']:
+            yield option
     for question in flashcards['questions']:
-        if isinstance(question, dict):
-            question['q'] = _normalize_content(question.get('q'))
-            question['a'] = _normalize_content(question.get('a'))
-
-
-def _iter_exam_contents(mcqs: dict, flashcards: dict):
-    for question in mcqs['questions']:
-        yield question['q']
-        yield from question['a']
-    for question in flashcards['questions']:
-        yield question['q']
-        yield question['a']
+        yield from question['question']
+        yield from question['answer']
 
 
 def _is_remote_image(src: str)->bool:
@@ -119,43 +263,42 @@ def _copy_and_rewrite_images(
     assets_dir: Path,
 ):
     """Copy local question images and rewrite their URLs for the output page."""
-    for content in _iter_exam_contents(mcqs, flashcards):
-        if isinstance(content, str):
+    for element in _iter_exam_elements(mcqs, flashcards):
+        if not isinstance(element, dict) or element.get('type') != 'image':
             continue
 
-        for image in content['images']:
-            src = image['src'].strip()
-            if _is_remote_image(src):
-                image['src'] = src
-                continue
+        src = element['src'].strip()
+        if _is_remote_image(src):
+            element['src'] = src
+            continue
 
-            parsed = urlparse(src)
-            if parsed.scheme:
-                raise ValueError(f"Unsupported image URL scheme: {parsed.scheme}")
+        parsed = urlparse(src)
+        if parsed.scheme:
+            raise ValueError(f"Unsupported image URL scheme: {parsed.scheme}")
 
-            local_path = Path(src)
-            if not local_path.is_absolute():
-                local_path = source_path.parent / local_path
-            local_path = local_path.resolve()
+        local_path = Path(src)
+        if not local_path.is_absolute():
+            local_path = source_path.parent / local_path
+        local_path = local_path.resolve()
 
-            if not local_path.is_file():
-                raise FileNotFoundError(
-                    f"The image referenced by {source_path} does not exist: {src}"
-                )
+        if not local_path.is_file():
+            raise FileNotFoundError(
+                f"The image referenced by {source_path} does not exist: {src}"
+            )
 
-            with open(local_path, 'rb') as image_file:
-                digest = hashlib.file_digest(image_file, 'sha256').hexdigest()[:12]
-            safe_stem = re.sub(r'[^\w.-]+', '-', local_path.stem, flags=re.UNICODE).strip('-')
-            if not safe_stem:
-                safe_stem = 'image'
-            target_path = assets_dir / f'{safe_stem}-{digest}{local_path.suffix.lower()}'
-            assets_dir.mkdir(parents=True, exist_ok=True)
-            if not target_path.exists():
-                shutil.copy2(local_path, target_path)
+        with open(local_path, 'rb') as image_file:
+            digest = hashlib.file_digest(image_file, 'sha256').hexdigest()[:12]
+        safe_stem = re.sub(r'[^\w.-]+', '-', local_path.stem, flags=re.UNICODE).strip('-')
+        if not safe_stem:
+            safe_stem = 'image'
+        target_path = assets_dir / f'{safe_stem}-{digest}{local_path.suffix.lower()}'
+        assets_dir.mkdir(parents=True, exist_ok=True)
+        if not target_path.exists():
+            shutil.copy2(local_path, target_path)
 
-            image['src'] = Path(
-                os.path.relpath(target_path, start=output_path.parent)
-            ).as_posix()
+        element['src'] = Path(
+            os.path.relpath(target_path, start=output_path.parent)
+        ).as_posix()
 
 
 def _json_for_inline_script(value)->str:
@@ -209,51 +352,61 @@ def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
         raise ValueError("The file questions is empty!")
 
     _normalize_exam_content(mcqs, flashcards)
+    mcqs_questions = mcqs['questions']
+    flashcards_questions = flashcards['questions']
     
-    # 检查一下 mcqs 和 flashcards 的题目是否符合要求
-    # mcqs 每一道题目应当包含 q、a、c；c 可为单个索引，也可为非空索引列表
+    # 检查一下 mcqs 和 flashcards 的题目是否符合要求。
     for index, mcqs_question in enumerate(mcqs_questions):
         if not isinstance(mcqs_question, dict):
             raise ValueError(f"The mcqs question(No.{index+1}) format is not correct!")
-        
-        q = mcqs_question.get('q')
-        a = mcqs_question.get('a')
-        c = mcqs_question.get('c')
 
-        is_single_answer = type(c) is int
-        is_answer_list = (
-            isinstance(c, list)
-            and bool(c)
-            and all(type(answer) is int for answer in c)
-            and len(c) == len(set(c))
-        )
+        question_elements = mcqs_question.get('question')
+        options = mcqs_question.get('options')
         is_question_format_legal = (
-            _validate_content(q)
-            and isinstance(a, list)
-            and bool(a)
-            and all(_validate_content(answer) for answer in a)
-            and (is_single_answer or is_answer_list)
+            _validate_elements(
+                question_elements,
+                {'text', 'image', 'table'},
+            )
+            and isinstance(options, list)
+            and bool(options)
+            and all(
+                isinstance(option, dict)
+                and type(option.get('correct')) is bool
+                and _validate_element(option, {'text', 'image'})
+                for option in options
+            )
+            and any(option['correct'] for option in options)
         )
 
         if not is_question_format_legal:
-            raise ValueError(f"The mcqs question(No.{index+1}) format is not correct!\nq:{q}\na:{a}\nc:{c}")
-        
-        correct_answers = [c] if is_single_answer else c
-        if any(answer < 0 or answer >= len(a) for answer in correct_answers):
-            raise ValueError(f"The mcqs question(No.{index+1}) doesn't have correct answer!")
+            raise ValueError(
+                f"The mcqs question(No.{index+1}) format is not correct!\n"
+                f"question:{question_elements}\noptions:{options}"
+            )
     
-    # flashcards 每道题目应当包含 q, a
+    # flashcards 每道题目应当包含 question、answer。
     for index, flashcards_question in enumerate(flashcards_questions):
         if not isinstance(flashcards_question, dict):
             raise ValueError(f"The flashcards question(No.{index+1}) format is not correct!")
-        
-        q = flashcards_question.get('q')
-        a = flashcards_question.get('a')
 
-        is_question_format_legal = _validate_content(q) and _validate_content(a)
+        question_elements = flashcards_question.get('question')
+        answer_elements = flashcards_question.get('answer')
+        is_question_format_legal = (
+            _validate_elements(
+                question_elements,
+                {'text', 'image', 'table'},
+            )
+            and _validate_elements(
+                answer_elements,
+                {'text', 'image', 'table'},
+            )
+        )
 
         if not is_question_format_legal:
-            raise ValueError(f"The flashcards question(No.{index+1}) format is not correct!\nq:{q}\na:{a}")
+            raise ValueError(
+                f"The flashcards question(No.{index+1}) format is not correct!\n"
+                f"question:{question_elements}\nanswer:{answer_elements}"
+            )
         
     return metadata, mcqs, flashcards
 

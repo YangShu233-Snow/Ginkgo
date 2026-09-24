@@ -218,11 +218,37 @@ Preserve images from the original material using standard Markdown image syntax:
   - Mitochondrion
 ```
 
-Images may appear in question stems, multiple-choice options, flashcard questions, or flashcard answers. Keep each image in the same list item as the content it belongs to. Preserve the original path, alt text, and optional title. Do not invent an image path or replace an image with a textual description.
+Images may appear in question stems, multiple-choice options, flashcard questions, or flashcard answers. Preserve the original path, alt text, and optional title. Do not invent an image path or replace an image with a textual description.
+
+A multiple-choice option must contain exactly one text element or one image element. Do not combine prose and an image in the same option list item. Questions and flashcards may mix text, images, and tables in their original order.
 
 ---
 
-## 6. Question Separators
+## 6. Tables
+
+Markdown tables may appear in question stems, flashcard questions, or flashcard answers. Tables must not appear in multiple-choice options.
+
+Indent every table line with four spaces so that the table remains a child of the list item it belongs to. Keep a blank line before and after the table.
+
+For example:
+
+```markdown
+- Compare the values in the table:
+
+    | Name | Value |
+    |:-----|------:|
+    | A    | $x$   |
+    | B    | $y$   |
+
+  - [x] A
+  - B
+```
+
+Preserve table headers, rows, column alignment, cell text, and LaTeX exactly. Do not convert a table into prose or an image.
+
+---
+
+## 7. Question Separators
 
 Different questions within the same section must be separated using:
 
@@ -246,7 +272,7 @@ Do not add `---` after the last question in a section.
 
 ---
 
-## 7. Blank Line Rules
+## 8. Blank Line Rules
 
 Different structural elements must be separated by blank lines.
 
@@ -271,7 +297,7 @@ Do not place headings, blockquotes, questions, or separators directly next to on
 
 ---
 
-## 8. Conversion Boundaries
+## 9. Conversion Boundaries
 
 The conversion must follow all of these rules:
 
