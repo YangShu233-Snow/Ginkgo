@@ -1,5 +1,6 @@
 from pathlib import Path
 from lxml import html
+from html import escape as html_escape
 
 import markdown
 import logging
@@ -7,6 +8,53 @@ import json
 import re
 
 logger = logging.getLogger(__name__)
+
+
+_MATH_PATTERN = re.compile(
+    r'(?<!\\)\$\$(?:\\[\s\S]|(?!\$\$)[^\\])*?(?<!\\)\$\$'
+    r'|(?<![\\$])\$(?!\$)(?:\\.|[^\\$\n])*?(?<!\\)\$(?!\$)'
+    r'|\\\((?:(?!\\\))[\s\S])*?\\\)'
+    r'|\\\[(?:(?!\\\])[\s\S])*?\\\]'
+    r'|\\\$'
+)
+
+
+def _protect_math(markdown_source: str):
+    """Hide TeX delimiters from Markdown emphasis and escape processing."""
+    protected = []
+    token_prefix = 'GINKGOMATHPROTECTIONTOKEN'
+
+    # Maybe someone like to wirte 'GINKGOMATHPROTECTIONTOKEN' in their docs....S
+    while token_prefix in markdown_source:
+        token_prefix += 'X'
+
+    def replace(match):
+        token = f'{token_prefix}{len(protected)}END'
+        protected.append((token, match.group(0)))
+        return token
+
+    return _MATH_PATTERN.sub(replace, markdown_source), protected
+
+
+def _restore_math(markdown_html: str, protected):
+    for token, math_source in protected:
+        markdown_html = markdown_html.replace(
+            token,
+            html_escape(math_source),
+        )
+    return markdown_html
+
+
+def _restore_metadata_math(metadata: dict, protected):
+    for key, value in metadata.items():
+        values = value if isinstance(value, list) else [value]
+        restored_values = []
+        for item in values:
+            for token, math_source in protected:
+                item = item.replace(token, math_source)
+            restored_values.append(item)
+        metadata[key] = restored_values if isinstance(value, list) else restored_values[0]
+    return metadata
 
 
 def _content_from_element(element):
@@ -125,9 +173,10 @@ def flashcards_converter(flashcards_html)->dict|None:
 def convert_md_to_json(filepath: Path)->str:
     md_parser = markdown.Markdown(extensions=['meta'])
     with open(filepath, 'r', encoding='utf-8') as f:
-        md = md_parser.convert(f.read())
+        markdown_source, protected_math = _protect_math(f.read())
+        md = _restore_math(md_parser.convert(markdown_source), protected_math)
 
-    metadata: dict = md_parser.Meta
+    metadata: dict = _restore_metadata_math(md_parser.Meta, protected_math)
 
     html_parser = html.HTMLParser(encoding='utf-8')
 

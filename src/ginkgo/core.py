@@ -340,9 +340,6 @@ def exam_html_generator(
     description = metadata.get('description')
     if isinstance(description, list):
         description = ' '.join(description)
-    quiz_description = f'<p>{description or ''}</p>' \
-    f'<p>Made by {authors}</p>'
-
     if (output_path is None) != (assets_dir is None):
         raise ValueError("output_path and assets_dir must be provided together")
     if output_path is not None and assets_dir is not None:
@@ -354,14 +351,18 @@ def exam_html_generator(
             assets_dir=Path(assets_dir),
         )
 
-    script_data_content = f'const mcqs = {_json_for_inline_script(mcqs.get('questions'))};\n' \
+    exam_metadata = {
+        'title': quiz_title,
+        'description': description or '',
+        'authors': authors or '',
+    }
+    script_data_content = f'const examMetadata = {_json_for_inline_script(exam_metadata)};\n' \
+    f'const mcqs = {_json_for_inline_script(mcqs.get('questions'))};\n' \
     f'const flashcards = {_json_for_inline_script(flashcards.get('questions'))};'
 
     # 初始化题目数据
     quiz_html_tree = html.parse(QUIZHTML_PATH, html.HTMLParser(encoding='utf-8'))
     script_data_node = quiz_html_tree.xpath('//script')[0]
-    script_node = quiz_html_tree.xpath('//script')[1]
-    script_node.text = script_node.text.replace('<div>title</div>', quiz_title).replace('<div>description</div>', quiz_description)
     script_data_node.text = script_data_content
 
     # 页面生成

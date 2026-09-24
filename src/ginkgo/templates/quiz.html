@@ -2,12 +2,13 @@
 <div id="root"></div>
 
 <script>
+  const examMetadata = {};
   const mcqs = [];
   const flashcards = [];
 </script>
 
 <script type="text/babel">
-  const { useState, useEffect } = React;
+  const { useState, useLayoutEffect, useRef } = React;
 
   // 自定义 SVG 图标组件，替代有 bug 的 Lucide-React 库，解决 Infinity 冲突
   const CheckCircle2 = ({ size = 24, className = "" }) => (
@@ -198,6 +199,75 @@
     </svg>
   );
 
+  let mathJaxQueue = Promise.resolve();
+
+  const queueMathTask = (task) => {
+    mathJaxQueue = mathJaxQueue
+      .then(() => window.MathJax?.startup?.promise)
+      .then(task)
+      .catch((error) => console.error("MathJax typesetting failed", error));
+  };
+
+  const queueMathTypeset = (container, text, shouldSkip) => {
+    queueMathTask(() => {
+      const mathJax = window.MathJax;
+      if (
+        shouldSkip() ||
+        !container.isConnected ||
+        !mathJax?.typesetPromise
+      ) {
+        return;
+      }
+
+      mathJax.typesetClear?.([container]);
+      container.textContent = text || "";
+      return mathJax.typesetPromise([container]);
+    });
+  };
+
+  const MathText = ({ text, className = "" }) => {
+    const containerRef = useRef(null);
+
+    useLayoutEffect(() => {
+      const container = containerRef.current;
+      if (!container) return undefined;
+
+      if (!container.hasChildNodes()) {
+        container.textContent = text || "";
+      }
+      let disposed = false;
+
+      const typeset = () => {
+        const mathJax = window.MathJax;
+        if (disposed || !mathJax?.typesetPromise) return;
+        queueMathTypeset(container, text, () => disposed);
+      };
+
+      if (window.MathJax?.typesetPromise) {
+        typeset();
+      } else {
+        // Keep the source readable when the CDN is slow or unavailable.
+        container.textContent = text || "";
+        window.addEventListener("mathjax-ready", typeset, { once: true });
+      }
+
+      return () => {
+        disposed = true;
+        window.removeEventListener("mathjax-ready", typeset);
+        if (window.MathJax?.typesetClear) {
+          queueMathTask(() => window.MathJax.typesetClear([container]));
+        }
+      };
+    }, [text]);
+
+    return (
+      <div
+        ref={containerRef}
+        className={`math-content ${className}`}
+      ></div>
+    );
+  };
+
   const RichContent = ({ value, imageClassName = "max-h-72" }) => {
     const content =
       typeof value === "string"
@@ -207,7 +277,10 @@
     return (
       <div className="min-w-0 space-y-3">
         {content.text && (
-          <div className="whitespace-pre-wrap break-words">{content.text}</div>
+          <MathText
+            text={content.text}
+            className="whitespace-pre-wrap break-words"
+          />
         )}
         {content.images.map((image, index) => (
           <figure key={`${image.src}-${index}`} className="space-y-1.5">
@@ -335,11 +408,14 @@
               <BookOpen size={40} />
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3 break-words">
-              <div>title</div>
+              <MathText text={examMetadata.title} />
             </h1>
-            <p className="text-base sm:text-lg text-slate-500 leading-relaxed">
-              <div>description</div>
-            </p>
+            <div className="space-y-1 text-base leading-relaxed text-slate-500 sm:text-lg">
+              {examMetadata.description && (
+                <MathText text={examMetadata.description} />
+              )}
+              <div>Made by {examMetadata.authors}</div>
+            </div>
           </div>
 
           <div

@@ -29,6 +29,34 @@
         },
       };
     </script>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+          processEscapes: true,
+        },
+        startup: {
+          // React owns the page content, so each content component asks MathJax
+          // to typeset itself after it is mounted or updated.
+          typeset: false,
+          ready() {
+            MathJax.startup.defaultReady();
+            window.dispatchEvent(new Event("mathjax-ready"));
+          },
+        },
+      };
+    </script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js"
+    ></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -42,6 +70,14 @@
           "Segoe UI",
           Roboto,
           sans-serif;
+      }
+      .math-content {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+      .math-content mjx-container[display="true"] {
+        margin: 0.5em 0 !important;
       }
       .flip-card {
         perspective: 1000px;
