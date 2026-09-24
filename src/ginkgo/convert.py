@@ -7,6 +7,8 @@ import logging
 import json
 import re
 
+from ginkgo.markdown_normalizer import GinkgoMarkdownNormalizer
+
 logger = logging.getLogger(__name__)
 
 
@@ -293,7 +295,8 @@ def flashcards_converter(flashcards_html)->dict|None:
 def convert_md_to_json(filepath: Path)->str:
     md_parser = markdown.Markdown(extensions=['meta', 'tables'])
     with open(filepath, 'r', encoding='utf-8') as f:
-        markdown_source, protected_math = _protect_math(f.read())
+        normalization = GinkgoMarkdownNormalizer(f.read()).normalize()
+        markdown_source, protected_math = _protect_math(normalization.normalized)
         md = _restore_math(md_parser.convert(markdown_source), protected_math)
 
     metadata: dict = _restore_metadata_math(md_parser.Meta, protected_math)
@@ -350,7 +353,24 @@ def convert_md_to_json(filepath: Path)->str:
     if not isinstance(author, list):
         author = list(author)
 
+    for i in range(len(author)):
+        if not isinstance(author[i], str):
+            continue
+
+        item: str = author[i]
+        author[i] = item.strip('"')
+
     description = metadata.get('description', '')
+
+    if not isinstance(description, list):
+        description = list(description)
+
+    for i in range(len(description)):
+        if not isinstance(description[i], str):
+            continue
+
+        item: str = description[i]
+        description[i] = item.strip('"')
 
     if mcqs_html is not None:
         mcqs = mcqs_converter(mcqs_html=mcqs_html)
