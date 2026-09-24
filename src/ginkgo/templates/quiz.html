@@ -8,7 +8,7 @@
 </script>
 
 <script type="text/babel">
-  const { useState, useLayoutEffect, useRef } = React;
+  const { useState, useEffect, useLayoutEffect, useRef, useCallback } = React;
 
   // 自定义 SVG 图标组件，替代有 bug 的 Lucide-React 库，解决 Infinity 冲突
   const CheckCircle2 = ({ size = 24, className = "" }) => (
@@ -368,6 +368,76 @@
     const [wrongAnswers, setWrongAnswers] = useState([]);
     const hasMcqs = mcqs.length > 0;
     const hasFlashcards = flashcards.length > 0;
+    const questionCount =
+      view === "quiz"
+        ? mcqs.length
+        : view === "flashcard"
+          ? flashcards.length
+          : 0;
+
+    const goToPreviousQuestion = useCallback(() => {
+      if (currentIdx <= 0) return false;
+
+      setCurrentIdx((index) => index - 1);
+      setFlipped(false);
+      return true;
+    }, [currentIdx]);
+
+    const goToNextQuestion = useCallback(() => {
+      if (currentIdx >= questionCount - 1) return false;
+
+      setCurrentIdx((index) => index + 1);
+      setFlipped(false);
+      return true;
+    }, [currentIdx, questionCount]);
+
+    const handleNextButton = useCallback(() => {
+      if (!goToNextQuestion()) setView("menu");
+    }, [goToNextQuestion]);
+
+    useEffect(() => {
+      if (view !== "quiz" && view !== "flashcard") return undefined;
+
+      const handleKeyDown = (event) => {
+        const target = event.target;
+        const isEditing =
+          target instanceof HTMLElement &&
+          (target.isContentEditable ||
+            ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+        const isSidebarOpen = document
+          .querySelector(".sidebar-shell")
+          ?.classList.contains("is-open");
+
+        if (
+          event.defaultPrevented ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          isEditing ||
+          showNavModal ||
+          isSidebarOpen
+        ) {
+          return;
+        }
+
+        let didNavigate = false;
+        if (event.key === "ArrowLeft") {
+          didNavigate = goToPreviousQuestion();
+        } else if (event.key === "ArrowRight") {
+          didNavigate = goToNextQuestion();
+        }
+
+        if (didNavigate) event.preventDefault();
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [
+      goToNextQuestion,
+      goToPreviousQuestion,
+      showNavModal,
+      view,
+    ]);
 
     const resetState = () => {
       setCurrentIdx(0);
@@ -522,9 +592,9 @@
 
     if (view === "quiz") {
       return (
-        <div className="max-w-2xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
+        <div className="study-view quiz-view max-w-2xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
           {/* 导航头 */}
-          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+          <div className="study-view-header flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setView("menu")}
               className="min-h-11 shrink-0 text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
@@ -546,7 +616,7 @@
           </div>
 
           {/* 进度条 */}
-          <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
+          <div className="study-view-progress w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
               className="h-full bg-brand-800 transition-all duration-300"
               style={{ width: `${((currentIdx + 1) / mcqs.length) * 100}%` }}
@@ -724,26 +794,16 @@
           )}
           
           {/* 控制按钮 */}
-          <div className="flex items-center justify-between gap-2 sm:gap-4 mt-5 sm:mt-8">
+          <div className="study-view-controls flex items-center justify-between gap-2 sm:gap-4 mt-5 sm:mt-8">
             <button
               disabled={currentIdx === 0}
-              onClick={() => {
-                setCurrentIdx(currentIdx - 1);
-                setFlipped(false);
-              }}
+              onClick={goToPreviousQuestion}
               className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-white text-slate-600 hover:text-slate-800 border rounded-xl font-bold shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronLeft size={20} /> 上一题
             </button>
             <button
-              onClick={() => {
-                if (currentIdx < mcqs.length - 1) {
-                  setCurrentIdx(currentIdx + 1);
-                  setFlipped(false);
-                } else {
-                  setView("menu");
-                }
-              }}
+              onClick={handleNextButton}
               className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-brand-800 hover:bg-brand-900 text-white rounded-xl font-bold shadow-sm transition-all"
             >
               {currentIdx === mcqs.length - 1 ? "完成复习" : "下一题"}{" "}
@@ -788,9 +848,9 @@
 
     if (view === "flashcard") {
       return (
-        <div className="flashcard-view min-h-full max-w-4xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
+        <div className="study-view flashcard-view min-h-full max-w-4xl mx-auto pt-1 px-0 sm:pt-4 sm:px-4 md:pt-8">
           {/* 导航头 */}
-          <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
+          <div className="study-view-header flex items-center justify-between gap-2 mb-4 sm:mb-6">
             <button
               onClick={() => setView("menu")}
               className="min-h-11 shrink-0 text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1 font-medium"
@@ -812,7 +872,7 @@
           </div>
 
           {/* 进度条 */}
-          <div className="w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
+          <div className="study-view-progress w-full h-2 bg-slate-200 rounded-full mb-5 sm:mb-8 overflow-hidden">
             <div
               className="h-full bg-brand-800 transition-all duration-300"
               style={{
@@ -893,26 +953,16 @@
           </div>
 
           {/* 控制按钮 */}
-          <div className="flex items-center justify-between gap-2 sm:gap-4 mt-5 sm:mt-8">
+          <div className="study-view-controls flex items-center justify-between gap-2 sm:gap-4 mt-5 sm:mt-8">
             <button
               disabled={currentIdx === 0}
-              onClick={() => {
-                setCurrentIdx(currentIdx - 1);
-                setFlipped(false);
-              }}
+              onClick={goToPreviousQuestion}
               className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-white text-slate-600 hover:text-slate-800 border rounded-xl font-bold shadow-sm transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronLeft size={20} /> 上一题
             </button>
             <button
-              onClick={() => {
-                if (currentIdx < flashcards.length - 1) {
-                  setCurrentIdx(currentIdx + 1);
-                  setFlipped(false);
-                } else {
-                  setView("menu");
-                }
-              }}
+              onClick={handleNextButton}
               className="min-h-12 flex flex-1 sm:flex-none items-center justify-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 bg-brand-800 hover:bg-brand-900 text-white rounded-xl font-bold shadow-sm transition-all"
             >
               {currentIdx === flashcards.length - 1 ? "完成复习" : "下一题"}{" "}

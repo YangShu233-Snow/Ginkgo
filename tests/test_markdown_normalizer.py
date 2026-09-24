@@ -118,6 +118,52 @@ description: Test
             ['text', 'table'],
         )
 
+    def test_flashcard_table_continuation_stays_inside_question(self):
+        source = '''---
+title: Flashcard
+author: Tester
+description: Test
+---
+
+## flashcards
+
+- Suppose you want to test whether smoking is associated with disease.
+    |            | Disease | No Disease |
+    | ---------- | ------: | ---------: |
+    | Smoker     |      60 |         40 |
+    | Non-smoker |      30 |         70 |
+   Fill the following table and perform a Chi-square test.
+     |            | Disease | No Disease |
+     | ---------- | ------- | ---------- |
+     | Smoker     |         |            |
+     | Non-smoker |         |            |
+  - Use a Chi-square test and reject the null hypothesis.
+'''
+        state = GinkgoMarkdownNormalizer(source).normalize()
+        self.assertEqual(state.normalized_table_count, 2)
+        self.assertEqual(state.normalized_continuation_count, 1)
+        self.assertIn(
+            '\n    Fill the following table and perform a Chi-square test.\n',
+            state.normalized,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'flashcard.md'
+            path.write_text(source, encoding='utf-8')
+            _, _, flashcards = exam_loader(path)
+
+        flashcard = flashcards['questions'][0]
+        self.assertEqual(
+            [element['type'] for element in flashcard['question']],
+            ['text', 'table', 'text', 'table'],
+        )
+        self.assertEqual(
+            flashcard['answer'],
+            [{'type': 'text', 'content': (
+                'Use a Chi-square test and reject the null hypothesis.'
+            )}],
+        )
+
     def test_non_table_pipes_and_mcq_option_tables_are_not_rewritten(self):
         source = '''## mcqs
 

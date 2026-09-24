@@ -15,6 +15,7 @@ class MarkdownNormalizationState:
     raw: str
     normalized: str
     normalized_table_count: int = 0
+    normalized_continuation_count: int = 0
 
     @property
     def changed(self)->bool:
@@ -96,8 +97,10 @@ class GinkgoMarkdownNormalizer:
         output = []
         section = None
         normalized_table_count = 0
+        normalized_continuation_count = 0
         index = 0
         fence_marker = None
+        table_context_active = False
 
         while index < len(lines):
             line = lines[index]
@@ -135,6 +138,16 @@ class GinkgoMarkdownNormalizer:
                 if is_table_start
                 else None
             )
+
+            if table_context_active and line.strip() and not is_table_start:
+                if _LIST_ITEM_PATTERN.match(line) or indent == 0:
+                    table_context_active = False
+                elif indent < 4:
+                    output.append('    ' + line.lstrip(' '))
+                    normalized_continuation_count += 1
+                    index += 1
+                    continue
+
             if not (
                 is_table_start
                 and self._owner_allows_table(section, owner_indent)
@@ -162,6 +175,7 @@ class GinkgoMarkdownNormalizer:
                 and blank_before
                 and blank_after
             )
+            table_context_active = True
             if is_canonical:
                 output.extend(lines[index:table_end])
                 index = table_end
@@ -178,7 +192,7 @@ class GinkgoMarkdownNormalizer:
             normalized_table_count += 1
             index = table_end
 
-        if normalized_table_count == 0:
+        if normalized_table_count == 0 and normalized_continuation_count == 0:
             return self.state
 
         normalized = newline.join(output)
@@ -188,5 +202,6 @@ class GinkgoMarkdownNormalizer:
             raw=raw,
             normalized=normalized,
             normalized_table_count=normalized_table_count,
+            normalized_continuation_count=normalized_continuation_count,
         )
         return self.state
