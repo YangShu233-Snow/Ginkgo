@@ -15,7 +15,8 @@ dependencies = [
     "lxml>=6.1.1",
     "markdown>=3.10.2",
     "click>=8.4.2",
-    "ghp-import>= 2.1.0"
+    "ghp-import>= 2.1.0",
+    "watchdog>=6.0.0"
 ]
 
 [project.scripts]

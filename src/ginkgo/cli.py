@@ -1,13 +1,22 @@
 import logging
+from pathlib import Path
 import click
 
-from ginkgo.core import main_generator
+from ginkgo.core import BASEPATH, GINKGO_CONFIG_PATH, main_generator
 from ginkgo.deploy import deploy
+from ginkgo.livereload import LiveReloadServer
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(name)s - %(levelname)s - %(message)s'
 )
+
+logger = logging.getLogger(__name__)
+
+BASEPATH = Path().cwd()
+SITE_ROOT = BASEPATH / 'site'
+DOCS_ROOT = BASEPATH / 'docs'
+GINKGO_CONFIG_PATH = BASEPATH / 'ginkgo.yaml'
 
 STANDARD_FORMAT_CONVERT_PROMPT = """
 You are a **Markdown formatter for exam content**.
@@ -664,3 +673,36 @@ def prompt(standard: bool, memory: bool):
 def gh_deploy():
     main_generator()
     deploy()
+
+@cli.command()
+@click.option('-h', '--host', default='127.0.0.1')
+@click.option('-p', '--port', default=7777)
+def serve(host: str, port: int):
+
+    try:
+        port = int(port)
+    except ValueError:
+        logger.warning(f'{port} couldn\'t be port. It should be integer!')
+        port = 7777
+    
+    server = LiveReloadServer(
+        root=SITE_ROOT,
+        host=host,
+        port=int(port),
+        builder=main_generator
+    )
+
+    # Initial Building
+    main_generator()
+
+    server.watch(DOCS_ROOT)
+
+    if GINKGO_CONFIG_PATH.exists():
+        server.watch(GINKGO_CONFIG_PATH)
+
+    try:
+        server.server()
+    except KeyboardInterrupt:
+        logger.info('Shutting down...')
+    finally:
+        server.shutdown()
