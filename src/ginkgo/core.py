@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 import hashlib
 import json
 import logging
@@ -22,7 +23,7 @@ SIDEBARHTML_PATH = TEMPLATES_PATH / 'sidebar.html'
 INDEXHTML_PATH = TEMPLATES_PATH / 'index.html'
 QUIZHTML_PATH = TEMPLATES_PATH / 'quiz.html'
 FAVICON_PATH = TEMPLATES_PATH / 'favicon.svg'
-
+STASTIC_SITE_PATH = BASEPATH / 'site'
 
 def _normalize_element(element):
     if isinstance(element, str):
@@ -310,6 +311,14 @@ def _json_for_inline_script(value)->str:
         .replace('>', '\\u003e')
     )
 
+def _count_total_exams(nav):
+    total = 0
+    
+    for cat in nav:
+        _, exams = tuple(cat.items())[0]
+        total += len(exams)
+
+    return total
 
 def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
     if not isinstance(exam, dict):
@@ -493,8 +502,10 @@ def exam_html_generator(
     description = metadata.get('description')
     if isinstance(description, list):
         description = ' '.join(description)
+    
     if (output_path is None) != (assets_dir is None):
         raise ValueError("output_path and assets_dir must be provided together")
+    
     if output_path is not None and assets_dir is not None:
         _copy_and_rewrite_images(
             mcqs=mcqs,
@@ -561,12 +572,14 @@ def index_html_generator(website: dict, nav: List[dict], siderbar_html):
 def nav_walker(website, nav: List[dict], siderbar_html_tpl):
     site_dir = Path(BASEPATH) / 'site'
 
+    logger.info('Clean the workspace.')
     if site_dir.exists():
         shutil.rmtree(site_dir)
         
     site_dir.mkdir()
     shutil.copyfile(FAVICON_PATH, site_dir / 'favicon.svg')
 
+    logger.info('Construct the index page.')
     index_html = index_html_generator(
         website=website,
         nav=nav,
@@ -575,6 +588,10 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
     index_path = site_dir / 'index.html'
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(html.tostring(index_html, encoding='unicode', method='html'))
+
+    logger.info('Construct the exam page content.')
+    total = _count_total_exams(nav)
+    now = 1 
 
     for cat in nav:
         category, exams = tuple(cat.items())[0]
@@ -589,6 +606,9 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
             exam_path: Path = category_dir / f"{title}.html"
             href = './' + category + '/' + title + '.html'
 
+            logger.info(f'({now}/{total}) {filepath}: {title}')
+            now += 1
+            
             sidebar_html = copy.deepcopy(siderbar_html_tpl)
             # 高亮对应的 siderbar link
             now_link_node = sidebar_html.xpath(f'//a[@href="{href}"]')[0]
@@ -614,10 +634,14 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
                 logger.warning(f"The file {filepath} has been skipped.")
                 continue
 
+            logger.info(f'Construct completedly! Save it to {exam_path}...')
             with open(exam_path, 'w', encoding='utf-8') as f:
                 f.write(html.tostring(main_html, encoding='unicode', method='html'))
+            logger.info(f'{filepath}: {title} is ready!')
 
 def main_generator():
+    logger.info(f'Hello, it\'s {datetime.now()}')
+    logger.info('Loading Ginkgo YAML...')
     if not GINKGO_CONFIG_PATH.exists():
         logger.error("ginkgo.yaml isn\'t existing!")
         raise IOError("ginkgo.yaml isn\'t existing!")
@@ -629,8 +653,17 @@ def main_generator():
         logger.error(f"{GINKGO_CONFIG_PATH} isn\'t correct.")
         raise TypeError(f"{GINKGO_CONFIG_PATH} isn\'t correct.")
 
+    logger.info('Ginkgo YAML loads successfully!')
+
     website = ginkgo_config.get('website')
     nav = ginkgo_config.get('nav')
-    sidebar_html = sidebar_html_generator(website=website, nav=nav)
 
+    logger.info('Generating the sidebar navigation...')
+    sidebar_html = sidebar_html_generator(website=website, nav=nav)
+    logger.info('Sidebar Navigation is ready!')
+
+    logger.info('Generating the Ginkgo Quizzes...')
     nav_walker(website=website, nav=nav, siderbar_html_tpl=sidebar_html)
+
+    logger.info('Over.')
+    logger.info(f'The Static Site is available at: {STASTIC_SITE_PATH}')

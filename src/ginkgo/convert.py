@@ -227,7 +227,7 @@ def mcqs_converter(mcqs_html)->dict|None:
         'description': description,
         'questions': []
     }
-    for element in questions_element:
+    for index, element in enumerate(questions_element):
         question_item, option_items = _question_and_nested_items(element)
         if question_item is None:
             continue
@@ -244,7 +244,7 @@ def mcqs_converter(mcqs_html)->dict|None:
             is_correct, option_elements = _extract_correct_marker(option_elements)
             if len(option_elements) != 1:
                 raise ValueError(
-                    'Each option must contain exactly one text or image element'
+                    f'No.{index+1}: Each option must contain exactly one text or image element'
                 )
             option = option_elements[0]
             option['correct'] = is_correct
@@ -270,7 +270,7 @@ def flashcards_converter(flashcards_html)->dict|None:
         'questions': []
     }
 
-    for element in questions_element:
+    for index, element in enumerate(questions_element):
         question_item, answer_items = _question_and_nested_items(element)
         if question_item is None or not answer_items:
             question_content = (
@@ -279,7 +279,7 @@ def flashcards_converter(flashcards_html)->dict|None:
                 else []
             )
             raise ValueError(
-                'A flashcard must contain both a question and an answer. '
+                f'No.{index+1}: A flashcard must contain both a question and an answer. '
                 f'{question_content}'
             )
 
@@ -293,6 +293,7 @@ def flashcards_converter(flashcards_html)->dict|None:
     return flashcards
 
 def convert_md_to_json(filepath: Path)->str:
+    logger.info('Transform the Ginkgo Markdown to Ginkgo JSON.')
     md_parser = markdown.Markdown(extensions=['meta', 'tables'])
     with open(filepath, 'r', encoding='utf-8') as f:
         normalization = GinkgoMarkdownNormalizer(f.read()).normalize()
