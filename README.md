@@ -1,6 +1,6 @@
-[Ginkgo Logo](assets/logo.png)
-
----
+<div style="text-align: center;">
+<center><img src='./assets/logo.png' width=20%></img></center>
+</div>
 
 # Ginkgo
 
