@@ -26,8 +26,10 @@
 
 Ginkgo 支持构建、自动发布、本地预览等功能，并提供提示词以帮助使用者借助 LLM 快速将原始资料整理成可使用的 Ginkgo Markdown。
 
-```text
-$ ginkgo --help
+```bash
+pip install ginkgo-flashcards
+
+ginkgo --help
 Usage: ginkgo [OPTIONS] COMMAND [ARGS]...
 
 Options:
