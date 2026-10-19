@@ -677,7 +677,10 @@ def gh_deploy():
 @cli.command()
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=7777)
-def serve(host: str, port: int):
+@click.option('-d', '--docs', default=DOCS_ROOT)
+def serve(host: str, port: int, docs: str|Path):
+    if not isinstance(docs, Path):
+        docs = Path(docs)
 
     try:
         port = int(port)
@@ -695,7 +698,7 @@ def serve(host: str, port: int):
     # Initial Building
     main_generator()
 
-    server.watch(DOCS_ROOT)
+    server.watch(docs)
 
     if GINKGO_CONFIG_PATH.exists():
         server.watch(GINKGO_CONFIG_PATH)

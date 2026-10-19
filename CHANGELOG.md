@@ -4,6 +4,10 @@ All notable changes to this project will be documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- 为 `ginkgo serve` 增加了 `--docs` 参数，用于指定本地文档监听入口
+
 ### Fixed
 
 - 修复了 Firefox 下 flashcards 翻转后渲染错误的问题。[Mozilla Bugs Report](https://bugzilla.mozilla.org/show_bug.cgi?id=1201471)
