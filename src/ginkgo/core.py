@@ -419,7 +419,9 @@ def exam_json_decoder(exam: dict)->Tuple[dict, dict, dict]:
         
     return metadata, mcqs, flashcards
 
-def exam_loader(filepath: Path)->Tuple[dict, dict, dict]:
+def exam_loader(
+    filepath: Path
+)->dict:
     if not filepath.exists():
         raise IOError(f"{filepath} isn't existing!")
     
@@ -433,7 +435,7 @@ def exam_loader(filepath: Path)->Tuple[dict, dict, dict]:
         else:
             exam = json.loads(convert_md_to_json(filepath=filepath))
 
-        return exam_json_decoder(exam)
+        return exam
     except json.decoder.JSONDecodeError as je:
         logger.error(f"{filepath} isn't a legal json format!")
         raise je
@@ -489,7 +491,8 @@ def exam_html_generator(
 ):
     filepath = Path(filepath)
     try:
-        metadata, mcqs, flashcards = exam_loader(filepath=filepath)
+        ginkgo_json = exam_loader(filepath=filepath)
+        metadata, mcqs, flashcards = exam_json_decoder(ginkgo_json)
     except Exception as e:
         logger.error(e)
         raise
@@ -542,7 +545,7 @@ def exam_html_generator(
     for child in list(quiz_body):
         quiz_container.append(child)
 
-    return main_html_tree
+    return main_html_tree, ginkgo_json
 
 def index_html_generator(
     website: dict, 
@@ -580,7 +583,37 @@ def index_html_generator(
 
     return main_html_tree
 
-def nav_walker(website, nav: List[dict], siderbar_html_tpl):
+def index_json_generator(
+    website,
+    nav: List[dict[str, list[dict]]]
+)->dict:
+    index = {}
+    site_description = website.get('description')
+    if Path(site_description).exists():
+        if Path(site_description).suffix in ['.html', '.htm']:
+            site_description = Path(site_description).read_text()
+
+    website['description'] = site_description
+
+    index['website'] = website
+    for category in nav:
+        category_name: str = tuple(category.keys())[0]
+        
+        items = {}
+        for item in category[category_name]:
+            item_name: str = tuple(item.keys())[0]
+            items[item_name] = f'{category_name}/{item_name}.html'
+
+        index[category_name] = items
+
+    return index
+
+def nav_walker(
+    website, 
+    nav: List[dict], 
+    siderbar_html_tpl,
+    with_json: bool
+):
     site_dir = Path(BASEPATH) / 'site'
 
     logger.info('Clean the workspace.')
@@ -600,6 +633,12 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
     with open(index_path, 'w', encoding='utf-8') as f:
         f.write(html.tostring(index_html, encoding='unicode', method='html'))
 
+    if with_json:
+        logger.info('Generate the index json.')
+        index_json = index_json_generator(website, nav)
+        index_json_path = site_dir / 'index.json'
+        index_json_path.write_text(json.dumps(index_json, ensure_ascii=False), encoding='utf-8')
+
     logger.info('Construct the exam page content.')
     total = _count_total_exams(nav)
     now = 1 
@@ -615,6 +654,7 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
             title, filepath = tuple(exam.items())[0]
             filepath = BASEPATH / filepath
             exam_path: Path = category_dir / f"{title}.html"
+            exam_json_path = category_dir / f"{title}.json"
             href = './' + category + '/' + title + '.html'
 
             logger.info(f'({now}/{total}) {filepath}: {title}')
@@ -633,12 +673,12 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
             rebase_sidebar_links(sidebar_html, '../')
 
             try:
-                main_html = exam_html_generator(
+                main_html, ginkgo_json = exam_html_generator(
                     website=website,
                     filepath=filepath,
                     siderbar_html=sidebar_html,
                     output_path=exam_path,
-                    assets_dir=site_dir / 'assets',
+                    assets_dir=site_dir / 'assets'
                 )
             except Exception as e:
                 logger.error(f"An exception occurs! The details: {e}")
@@ -648,9 +688,14 @@ def nav_walker(website, nav: List[dict], siderbar_html_tpl):
             logger.info(f'Construct completedly! Save it to {exam_path}...')
             with open(exam_path, 'w', encoding='utf-8') as f:
                 f.write(html.tostring(main_html, encoding='unicode', method='html'))
+
+            if with_json:
+                logger.info(f'JSON Flag! Save it to {exam_json_path}')
+                exam_json_path.write_text(json.dumps(ginkgo_json, ensure_ascii=False), encoding='utf-8')
+
             logger.info(f'{filepath}: {title} is ready!')
 
-def main_generator():
+def main_generator(with_json: bool):
     logger.info(f'Hello, it\'s {datetime.now()}')
     logger.info('Loading Ginkgo YAML...')
     if not GINKGO_CONFIG_PATH.exists():
@@ -674,7 +719,7 @@ def main_generator():
     logger.info('Sidebar Navigation is ready!')
 
     logger.info('Generating the Ginkgo Quizzes...')
-    nav_walker(website=website, nav=nav, siderbar_html_tpl=sidebar_html)
+    nav_walker(website=website, nav=nav, siderbar_html_tpl=sidebar_html, with_json=with_json)
 
     logger.info('Over.')
     logger.info(f'The Static Site is available at: {STASTIC_SITE_PATH}')

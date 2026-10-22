@@ -1,3 +1,4 @@
+from email.policy import default
 import logging
 from pathlib import Path
 import click
@@ -654,12 +655,13 @@ def cli():
     pass
 
 @cli.command()
-def build():
-    main_generator()
+@click.option('-j', '--with-json', is_flag=True, default=False)
+def build(with_json: bool):
+    main_generator(with_json=with_json)
 
 @cli.command()
 @click.option('-s', '--standard', is_flag=True)
-@click.option('-m', '--memory', is_flag=True)
+@click.option('-m', '--memory', is_flag=True, default=False)
 def prompt(standard: bool, memory: bool):
     if standard:
         print(STANDARD_FORMAT_CONVERT_PROMPT)
@@ -670,15 +672,17 @@ def prompt(standard: bool, memory: bool):
         return 
 
 @cli.command()
-def gh_deploy():
-    main_generator()
+@click.option('-j', '--with-json', is_flag=True, default=False)
+def gh_deploy(with_json: bool):
+    main_generator(with_json)
     deploy()
 
 @cli.command()
 @click.option('-h', '--host', default='127.0.0.1')
 @click.option('-p', '--port', default=7777)
 @click.option('-d', '--docs', default=DOCS_ROOT)
-def serve(host: str, port: int, docs: str|Path):
+@click.option('-j', '--with-json', is_flag=True, default=False)
+def serve(host: str, port: int, docs: str|Path, with_json: bool):
     if not isinstance(docs, Path):
         docs = Path(docs)
 
@@ -692,11 +696,12 @@ def serve(host: str, port: int, docs: str|Path):
         root=SITE_ROOT,
         host=host,
         port=int(port),
-        builder=main_generator
+        builder=main_generator,
+        with_json=with_json
     )
 
     # Initial Building
-    main_generator()
+    main_generator(with_json)
 
     server.watch(docs)
 

@@ -82,7 +82,8 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
         root: str|Path,
         host: str,
         port: int,
-        builder: Callable[[], None],
+        builder: Callable[[bool], None],
+        with_json: bool = False,
         watch_interval: float = 0.5,
         shutdown_delay: float = 0.5,
         builder_interval: float = 0.5,
@@ -93,6 +94,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
 
         self.root = root
         self.builder = builder
+        self.with_json = with_json
         self.url = f'http://{host}:{port}'
         
         super().__init__((host, port), _Handler, bind_and_activate=False)
@@ -173,7 +175,7 @@ class LiveReloadServer(socketserver.ThreadingMixIn, wsgiref.simple_server.WSGISe
                 self._wanted_rebuild = False
 
             try:
-                self.builder()
+                self.builder(self.with_json)
             except Exception as e:
                 if isinstance(e, SystemExit):
                     logger.error(f'{e}')

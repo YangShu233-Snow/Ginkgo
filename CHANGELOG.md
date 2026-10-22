@@ -7,6 +7,8 @@ All notable changes to this project will be documented here.
 ### Changed
 
 - 为 `ginkgo serve` 增加了 `--docs` 参数，用于指定本地文档监听入口
+- 为 `ginkgo.yaml:website` 配置项增加了 `description` 配置项
+- 为 `ginkgo build` 与相关命令加入 `--with-json` 参数，启用此选项，Ginkgo 会在构建时候保存必要的 JSON 数据供第三方调用。
 
 ### Fixed
 
