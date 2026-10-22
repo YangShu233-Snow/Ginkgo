@@ -544,17 +544,28 @@ def exam_html_generator(
 
     return main_html_tree
 
-def index_html_generator(website: dict, nav: List[dict], siderbar_html):
+def index_html_generator(
+    website: dict, 
+    nav: List[dict], 
+    siderbar_html
+):
     index_html_tree = html.parse(INDEXHTML_PATH, html.HTMLParser(encoding='utf-8'))
     index_body = index_html_tree.find('.//body')
 
     site_title = website.get('title')
-    category_count = len(nav)
-    quiz_count = sum(len(tuple(category.items())[0][1]) for category in nav)
+    site_description = website.get('description')
+    if Path(site_description).exists():
+        if Path(site_description).suffix in ['.html', '.htm']:
+            site_description = Path(site_description).read_text()
+
+    site_description_html = html.fromstring(site_description)
+    # category_count = len(nav)
+    # quiz_count = sum(len(tuple(category.items())[0][1]) for category in nav)
 
     index_body.xpath("//*[contains(@class, 'js-index-title')]")[0].text = site_title
-    index_body.xpath("//*[contains(@class, 'js-index-category-count')]")[0].text = str(category_count)
-    index_body.xpath("//*[contains(@class, 'js-index-quiz-count')]")[0].text = str(quiz_count)
+    index_body.xpath("//*[contains(@class, 'js-index-description')]")[0].append(site_description_html)
+    # index_body.xpath("//*[contains(@class, 'js-index-category-count')]")[0].text = str(category_count)
+    # index_body.xpath("//*[contains(@class, 'js-index-quiz-count')]")[0].text = str(quiz_count)
 
     rebase_sidebar_links(siderbar_html, './')
 
